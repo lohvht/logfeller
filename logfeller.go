@@ -54,6 +54,7 @@ type File struct {
 	// timeRotationSchedule stores the parsed rotational schedule.
 	// These times are sorted and behave more like offsets instead.
 	// see File.nextAndPrevRotateTime()
+	// This field is populated on init()
 	timeRotationSchedule []timeOffset
 	// possibleNextTimes is a buffer that is reused everytime nextAndPrevRotateTime
 	// is called. This is to minimise allocations as we know beforehand the
@@ -76,7 +77,9 @@ func (f *File) init() error {
 	var err error
 	f.initOnce.Do(func() {
 		if f.Filename == "" {
-			name := filepath.Base(os.Args[0]) + "-logfeller.log"
+			basename := filepath.Base(os.Args[0])
+			trimmedCmdName := strings.TrimSuffix(basename, filepath.Ext(basename))
+			name := trimmedCmdName + "-logfeller.log"
 			f.Filename = filepath.Join(os.TempDir(), name)
 		}
 		f.When = WhenRotate(strings.ToLower(string(f.When)))
@@ -111,7 +114,10 @@ func (f *File) init() error {
 
 // UnmarshalJSON unmarshals JSON to the file handler and init f too.
 func (f *File) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, f)
+	type alias File
+	// Replace f with tmp and unmarshal there to prevent infinite loops
+	tmp := (*alias)(f)
+	err := json.Unmarshal(data, tmp)
 	if err != nil {
 		return err
 	}
@@ -241,13 +247,11 @@ var (
 )
 
 type timeOffset struct {
-	year   int
 	month  int
 	day    int
 	hour   int
 	minute int
 	second int
-	sec    int
 }
 
 // timeOffsets is a slice of timeOffsets, it satisfies sort.Interface
@@ -259,8 +263,6 @@ func (offs timeOffsets) Len() int { return len(offs) }
 // Less tells is timeOffsets[i] comes before timeOffsets[j]. We sort in an ascending order.
 func (offs timeOffsets) Less(i, j int) bool {
 	switch {
-	case offs[i].year < offs[j].year:
-		return true
 	case offs[i].month < offs[j].month:
 		return true
 	case offs[i].day < offs[j].day:
@@ -270,8 +272,6 @@ func (offs timeOffsets) Less(i, j int) bool {
 	case offs[i].minute < offs[j].minute:
 		return true
 	case offs[i].second < offs[j].second:
-		return true
-	case offs[i].sec < offs[j].sec:
 		return true
 	}
 	return false
