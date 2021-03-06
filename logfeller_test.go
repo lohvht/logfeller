@@ -3,6 +3,7 @@
 package logfeller
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -121,6 +122,77 @@ func TestFile_init(t *testing.T) {
 			}
 			if tt.f.BackupTimeFormat != tt.want.BackupTimeFormat {
 				t.Errorf("File.BackupTimeFormat = %v, want %v", tt.f.BackupTimeFormat, tt.want.BackupTimeFormat)
+			}
+		})
+	}
+}
+
+// TestFile_UnmarshalJSON is purely there to see if mapping between JSON tag
+// fields are accurate. For the actual init check TestFile_init
+func TestFile_UnmarshalJSON(t *testing.T) {
+	type args struct {
+		data []byte
+	}
+	type wantFields struct {
+		Filename         string
+		When             WhenRotate
+		RotationSchedule []string
+		UseLocal         bool
+		Backups          int
+		BackupTimeFormat string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    wantFields
+		wantErr bool
+	}{
+		{
+			name: "json_mapped_properly",
+			args: args{
+				data: []byte(`{
+	"filename":         "some-file-proper-name.txt",
+	"when":             "M",
+	"rotation_schedule": ["03 143000", "10 120000"],
+	"use_local":         true,
+	"backups":          69,
+	"backup_time_format": "Jan _2 15:04:05"
+}`),
+			},
+			want: wantFields{
+				Filename:         "some-file-proper-name.txt",
+				When:             "m",
+				RotationSchedule: []string{"03 143000", "10 120000"},
+				UseLocal:         true,
+				Backups:          69,
+				BackupTimeFormat: "Jan _2 15:04:05",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var f File
+			err := json.Unmarshal(tt.args.data, &f)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("File.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if f.Filename != tt.want.Filename {
+				t.Errorf("File.Filename = %v, want %v", f.Filename, tt.want.Filename)
+			}
+			if f.When != tt.want.When {
+				t.Errorf("File.When = %v, want %v", f.When, tt.want.When)
+			}
+			if !reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule) {
+				t.Errorf("File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
+			}
+			if f.UseLocal != tt.want.UseLocal {
+				t.Errorf("File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
+			}
+			if f.Backups != tt.want.Backups {
+				t.Errorf("File.Backups = %v, want %v", f.Backups, tt.want.Backups)
 			}
 		})
 	}
