@@ -47,7 +47,9 @@ type File struct {
 	Backups int `json:"backups" yaml:"backups"`
 	// BackupTimeFormat is the backup time format used when logfeller rotates
 	// the file. Defaults to "2006-01-02.150405" if empty
-	BackupTimeFormat string
+	// See the golang `time` package for more example formats
+	// https://golang.org/pkg/time/#Time.Format
+	BackupTimeFormat string `json:"backup_time_format" yaml:"backup-time-format"`
 
 	// timeRotationSchedule stores the parsed rotational schedule.
 	// These times are sorted and behave more like offsets instead.
