@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -47,10 +49,10 @@ type File struct {
 	// the file. Defaults to "2006-01-02.150405" if empty
 	BackupTimeFormat string
 
-	// timeRotationSchedule stores the rotational schedule that is parsed into
-	// time.Time. These times are sorted and behave more like offsets instead.
+	// timeRotationSchedule stores the parsed rotational schedule.
+	// These times are sorted and behave more like offsets instead.
 	// see File.nextAndPrevRotateTime()
-	timeRotationSchedule []time.Time
+	timeRotationSchedule []timeOffset
 	// possibleNextTimes is a buffer that is reused everytime nextAndPrevRotateTime
 	// is called. This is to minimise allocations as we know beforehand the
 	// number of possibleNextTimes = len(timeRotationSchedule) + 2.
@@ -80,14 +82,13 @@ func (f *File) init() error {
 			err = fmt.Errorf("logfeller: init failed, %w", errInner)
 			return
 		}
-		dtf := f.When.DateTimeFormat()
 		for _, schedule := range f.RotationSchedule {
-			t, errInner := time.Parse(dtf, schedule)
+			off, errInner := f.When.parseTimeoffset(schedule)
 			if errInner != nil {
 				err = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
 				return
 			}
-			f.timeRotationSchedule = append(f.timeRotationSchedule, t)
+			f.timeRotationSchedule = append(f.timeRotationSchedule, off)
 		}
 		if len(f.timeRotationSchedule) == 0 {
 			// If f.timeRotationSchedule is empty, add in a sensible default for
@@ -95,9 +96,7 @@ func (f *File) init() error {
 			f.timeRotationSchedule = append(f.timeRotationSchedule, f.When.baseRotateTime())
 		}
 		// Sort in ascending order for rotation
-		sort.Slice(f.timeRotationSchedule, func(i, j int) bool {
-			return f.timeRotationSchedule[i].Before(f.timeRotationSchedule[j])
-		})
+		sort.Sort(timeOffsets(f.timeRotationSchedule))
 		// add in before and after as list of possibleNextTimes
 		extraNextTimes := 2
 		f.possibleNextTimes = make([]time.Time, len(f.timeRotationSchedule)+extraNextTimes)
@@ -127,7 +126,7 @@ type WhenRotate string
 
 // valid returns an error if its not valid
 func (r WhenRotate) valid() error {
-	switch r {
+	switch WhenRotate(strings.ToLower(string(r))) {
 	case Hour, Day, Month, Year:
 		return nil
 	default:
@@ -135,43 +134,94 @@ func (r WhenRotate) valid() error {
 	}
 }
 
-// baseRotateTime returns a sensible default time for rotating.
-func (r WhenRotate) baseRotateTime() time.Time {
-	dateFormat := r.DateTimeFormat()
-	var defaultTimeString string
-	switch r {
-	case Hour:
-		defaultTimeString = "0000"
-	case Day:
-		defaultTimeString = "000000"
+// baseRotateTime returns a sensible default time offset for rotating.
+func (r WhenRotate) baseRotateTime() timeOffset {
+	var off timeOffset
+	switch WhenRotate(strings.ToLower(string(r))) {
+	case Hour, Day:
+		return off
 	case Month:
-		defaultTimeString = "01 000000"
+		off.day = 1
+		return off
 	case Year:
-		defaultTimeString = "0101 000000"
+		off.day = 1
+		off.month = 1
+		return off
 	default:
-		// Default, should not reach here
-		defaultTimeString = "00000101 000000"
+		off.day = 1
+		off.month = 1
+		return off
 	}
-	t, _ := time.Parse(dateFormat, defaultTimeString)
-	return t
 }
 
-// DateTimeFormat determines the desired format of date to parse the rotation
-// schedule in.
-func (r WhenRotate) DateTimeFormat() string {
-	switch r {
+// parseTimeoffset parses the time offset passed in such that they at least make
+// some sense relative to the current When.
+// For example if When = "d", then an offset of 250000 does not make sense as
+// a day only has a maximum of 24 hours
+// This does not handle year offset specifically for the month,
+// it just takes an upper bound of the max number of days a month has (i.e. 31 days),
+// so for When = "y", "0231 150405" will still be considered valid.
+func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //nolint:gocyclo // Let cyclo err here go
+	var offsetRegex *regexp.Regexp
+	when := WhenRotate(strings.ToLower(string(r)))
+	switch when {
 	case Hour:
-		return "0405"
+		offsetRegex = hourOffsetRegex
 	case Day:
-		return "150405"
+		offsetRegex = dayOffsetRegex
 	case Month:
-		return "02 150405"
+		offsetRegex = monthOffsetRegex
 	case Year:
-		return "0102 150405"
+		offsetRegex = yearOffsetRegex
 	default:
-		// Default, should not reach here
-		return "20060102 150405"
+		return timeOffset{}, fmt.Errorf("invalid rotation interval specified: %s, expected %v", r, [...]WhenRotate{Hour, Day, Month, Year})
 	}
+	match := offsetRegex.FindStringSubmatch(offsetStr)
+	if len(match) != len(offsetRegex.SubexpNames()) {
+		validFormatMsg := map[WhenRotate]string{
+			Hour:  `"0405" (MMSS)`,
+			Day:   `"150405" (HHMMSS)`,
+			Month: `"02 150405" (DD HHMMSS)`,
+			Year:  `"0102 150405" (mmDD HHMMSS)`,
+		}
+		return timeOffset{}, fmt.Errorf("invalid offset passed in for 'when' value '%s', expected value of format %s, got '%s'", r, validFormatMsg[when], offsetStr)
+	}
+	var off timeOffset
+	for i, name := range offsetRegex.SubexpNames() {
+		if i == 0 {
+			continue
+		}
+		// Ignore the error here, the regex should have handled it properly here
+		res, _ := strconv.Atoi(match[i])
+		switch name {
+		case "months":
+			if res < 1 || res > 12 {
+				return timeOffset{}, fmt.Errorf("invalid month offset %d, month must be between 1-12", off.month)
+			}
+			off.month = res
+		case "days":
+			if res < 1 || res > 31 {
+				return timeOffset{}, fmt.Errorf("invalid day offset %d, day must be between 1-31", off.day)
+			}
+			off.day = res
+		case "hours":
+			if res < 0 || res > 23 {
+				return timeOffset{}, fmt.Errorf("invalid hour offset %d, hour must be between 0-23", off.hour)
+			}
+			off.hour = res
+		case "minutes":
+			if res < 0 || res > 59 {
+				return timeOffset{}, fmt.Errorf("invalid minute offset %d, minute must be between 0-59", off.minute)
+			}
+			off.minute = res
+		case "seconds":
+			if res < 0 || res > 59 {
+				return timeOffset{}, fmt.Errorf("invalid second offset %d, second must be between 0-59", off.second)
+			}
+			off.second = res
+		}
+	}
+	return off, nil
 }
 
 const (
@@ -180,3 +230,50 @@ const (
 	Month WhenRotate = "m"
 	Year  WhenRotate = "y"
 )
+
+var (
+	hourOffsetRegex  = regexp.MustCompile(`^(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
+	dayOffsetRegex   = regexp.MustCompile(`^(?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
+	monthOffsetRegex = regexp.MustCompile(`^(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
+	yearOffsetRegex  = regexp.MustCompile(`^(?P<months>\d{2})(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
+)
+
+type timeOffset struct {
+	year   int
+	month  int
+	day    int
+	hour   int
+	minute int
+	second int
+	sec    int
+}
+
+// timeOffsets is a slice of timeOffsets, it satisfies sort.Interface
+type timeOffsets []timeOffset
+
+// Len is the number of elements in timeOffsets.
+func (offs timeOffsets) Len() int { return len(offs) }
+
+// Less tells is timeOffsets[i] comes before timeOffsets[j]. We sort in an ascending order.
+func (offs timeOffsets) Less(i, j int) bool {
+	switch {
+	case offs[i].year < offs[j].year:
+		return true
+	case offs[i].month < offs[j].month:
+		return true
+	case offs[i].day < offs[j].day:
+		return true
+	case offs[i].hour < offs[j].hour:
+		return true
+	case offs[i].minute < offs[j].minute:
+		return true
+	case offs[i].second < offs[j].second:
+		return true
+	case offs[i].sec < offs[j].sec:
+		return true
+	}
+	return false
+}
+
+// Swap swaps the elements with indexes i and j.
+func (offs timeOffsets) Swap(i, j int) { offs[i], offs[j] = offs[j], offs[i] }
