@@ -198,27 +198,27 @@ func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //no
 		switch name {
 		case "months":
 			if res < 1 || res > 12 {
-				return timeOffset{}, fmt.Errorf("invalid month offset %d, month must be between 1-12", off.month)
+				return timeOffset{}, fmt.Errorf("invalid month offset %d, month must be between 1-12", res)
 			}
 			off.month = res
 		case "days":
 			if res < 1 || res > 31 {
-				return timeOffset{}, fmt.Errorf("invalid day offset %d, day must be between 1-31", off.day)
+				return timeOffset{}, fmt.Errorf("invalid day offset %d, day must be between 1-31", res)
 			}
 			off.day = res
 		case "hours":
 			if res < 0 || res > 23 {
-				return timeOffset{}, fmt.Errorf("invalid hour offset %d, hour must be between 0-23", off.hour)
+				return timeOffset{}, fmt.Errorf("invalid hour offset %d, hour must be between 0-23", res)
 			}
 			off.hour = res
 		case "minutes":
 			if res < 0 || res > 59 {
-				return timeOffset{}, fmt.Errorf("invalid minute offset %d, minute must be between 0-59", off.minute)
+				return timeOffset{}, fmt.Errorf("invalid minute offset %d, minute must be between 0-59", res)
 			}
 			off.minute = res
 		case "seconds":
 			if res < 0 || res > 59 {
-				return timeOffset{}, fmt.Errorf("invalid second offset %d, second must be between 0-59", off.second)
+				return timeOffset{}, fmt.Errorf("invalid second offset %d, second must be between 0-59", res)
 			}
 			off.second = res
 		}
