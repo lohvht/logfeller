@@ -51,7 +51,7 @@ type File struct {
 	// timeRotationSchedule stores the parsed rotational schedule.
 	// These offsets are sorted.
 	// This field is populated on init()
-	timeRotationSchedule []timeOffset
+	timeRotationSchedule []timeSchedule
 
 	// directory is the directory of the current Filename
 	// This field is populated in init()
@@ -83,46 +83,20 @@ func (f *File) init() error {
 			err = fmt.Errorf("logfeller: init failed, %w", errInner)
 			return
 		}
-
 		// Populate the rotation schedule offsets
-		if len(f.RotationSchedule) == 0 {
-			// If no rotation schedule, add in a sensible default
-			f.timeRotationSchedule = make([]timeOffset, 3)
-			f.timeRotationSchedule[1] = f.When.baseRotateTime()
-		} else {
-			extraRotationSchedules := 2
-			f.timeRotationSchedule = make([]timeOffset, len(f.RotationSchedule)+extraRotationSchedules)
-			for i, schedule := range f.RotationSchedule {
-				off, errInner := f.When.parseTimeoffset(schedule)
+		f.timeRotationSchedule = make([]timeSchedule, 0, len(f.RotationSchedule))
+		for _, schedule := range f.RotationSchedule {
+			sch, errInner := f.When.parseTimeSchedule(schedule)
 				if errInner != nil {
 					err = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
 					return
 				}
-				f.timeRotationSchedule[i+1] = off
+			f.timeRotationSchedule = append(f.timeRotationSchedule, sch)
 			}
+		if len(f.RotationSchedule) == 0 {
+			f.timeRotationSchedule = append(f.timeRotationSchedule, f.When.baseRotateTime())
 		}
-		sort.Sort(timeOffsets(f.timeRotationSchedule[1 : len(f.timeRotationSchedule)-1]))
-
-		// Include the first and last shifted 1 hour/day/month/year (depending on f.When)
-		// to the future and past respectively as possible offsets.
-		firstOffset := f.timeRotationSchedule[len(f.timeRotationSchedule)-2]
-		lastOffset := f.timeRotationSchedule[1]
-		switch f.When {
-		case Hour:
-			firstOffset.hour--
-			lastOffset.hour++
-		case Day:
-			firstOffset.day--
-			lastOffset.day++
-		case Month:
-			firstOffset.month--
-			lastOffset.month++
-		case Year:
-			firstOffset.year--
-			lastOffset.year++
-		}
-		f.timeRotationSchedule[0] = firstOffset
-		f.timeRotationSchedule[len(f.timeRotationSchedule)-1] = lastOffset
+		sort.Sort(timeSchedules(f.timeRotationSchedule))
 		if f.BackupTimeFormat == "" {
 			f.BackupTimeFormat = defaultBackupTimeFormat
 		}

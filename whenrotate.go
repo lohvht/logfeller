@@ -48,8 +48,8 @@ func (r WhenRotate) valid() error {
 }
 
 // baseRotateTime returns a sensible default time offset for rotating.
-func (r WhenRotate) baseRotateTime() timeOffset {
-	var off timeOffset
+func (r WhenRotate) baseRotateTime() timeSchedule {
+	var off timeSchedule
 	switch r {
 	case Hour, Day:
 		return off
@@ -67,14 +67,14 @@ func (r WhenRotate) baseRotateTime() timeOffset {
 	}
 }
 
-// parseTimeoffset parses the time offset passed in such that they at least make
+// parseTimeSchedule parses the time offset passed in such that they at least make
 // some sense relative to the current When.
 // For example if When = "d", then an offset of 250000 does not make sense as
 // a day only has a maximum of 24 hours
 // This does not handle year offset specifically for the month,
 // it just takes an upper bound of the max number of days a month has (i.e. 31 days),
 // so for When = "y", "0231 150405" will still be considered valid.
-func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //nolint:gocyclo // Let cyclo err here go
+func (r WhenRotate) parseTimeSchedule(offsetStr string) (timeSchedule, error) { //nolint:gocyclo // Let cyclo err here go
 	var offsetRegex *regexp.Regexp
 	when := r
 	switch when {
@@ -87,7 +87,7 @@ func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //no
 	case Year:
 		offsetRegex = yearOffsetRegex
 	default:
-		return timeOffset{}, fmt.Errorf("invalid rotation interval specified: %s, expected %v", r, [...]WhenRotate{Hour, Day, Month, Year})
+		return timeSchedule{}, fmt.Errorf("invalid rotation interval specified: %s, expected %v", r, [...]WhenRotate{Hour, Day, Month, Year})
 	}
 	match := offsetRegex.FindStringSubmatch(offsetStr)
 	if len(match) != len(offsetRegex.SubexpNames()) {
@@ -97,9 +97,9 @@ func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //no
 			Month: `"02 150405" (DD HHMMSS)`,
 			Year:  `"0102 150405" (mmDD HHMMSS)`,
 		}
-		return timeOffset{}, fmt.Errorf("invalid offset passed in for 'when' value '%s', expected value of format %s, got '%s'", r, validFormatMsg[when], offsetStr)
+		return timeSchedule{}, fmt.Errorf("invalid offset passed in for 'when' value '%s', expected value of format %s, got '%s'", r, validFormatMsg[when], offsetStr)
 	}
-	var off timeOffset
+	var off timeSchedule
 	for i, name := range offsetRegex.SubexpNames() {
 		if i == 0 {
 			continue
@@ -109,27 +109,27 @@ func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //no
 		switch name {
 		case "months":
 			if res < 1 || res > 12 {
-				return timeOffset{}, fmt.Errorf("invalid month offset %d, month must be between 1-12", res)
+				return timeSchedule{}, fmt.Errorf("invalid month offset %d, month must be between 1-12", res)
 			}
 			off.month = res
 		case "days":
 			if res < 1 || res > 31 {
-				return timeOffset{}, fmt.Errorf("invalid day offset %d, day must be between 1-31", res)
+				return timeSchedule{}, fmt.Errorf("invalid day offset %d, day must be between 1-31", res)
 			}
 			off.day = res
 		case "hours":
 			if res < 0 || res > 23 {
-				return timeOffset{}, fmt.Errorf("invalid hour offset %d, hour must be between 0-23", res)
+				return timeSchedule{}, fmt.Errorf("invalid hour offset %d, hour must be between 0-23", res)
 			}
 			off.hour = res
 		case "minutes":
 			if res < 0 || res > 59 {
-				return timeOffset{}, fmt.Errorf("invalid minute offset %d, minute must be between 0-59", res)
+				return timeSchedule{}, fmt.Errorf("invalid minute offset %d, minute must be between 0-59", res)
 			}
 			off.minute = res
 		case "seconds":
 			if res < 0 || res > 59 {
-				return timeOffset{}, fmt.Errorf("invalid second offset %d, second must be between 0-59", res)
+				return timeSchedule{}, fmt.Errorf("invalid second offset %d, second must be between 0-59", res)
 			}
 			off.second = res
 		}
@@ -137,7 +137,9 @@ func (r WhenRotate) parseTimeoffset(offsetStr string) (timeOffset, error) { //no
 	return off, nil
 }
 
-type timeOffset struct {
+// timeSchedule is the rough schedule of when to rotate. By itself this struct
+// has no meaning, it needs to be paired with WhenRotate.
+type timeSchedule struct {
 	year   int
 	month  int
 	day    int
@@ -146,7 +148,7 @@ type timeOffset struct {
 	second int
 }
 
-func (t timeOffset) approxDuration() time.Duration {
+func (t *timeSchedule) approxDuration() time.Duration {
 	return time.Duration(t.year)*oneYear +
 		time.Duration(t.month)*approxOneMonth +
 		time.Duration(t.day)*oneDay +
@@ -155,16 +157,16 @@ func (t timeOffset) approxDuration() time.Duration {
 		time.Duration(t.second)*time.Second
 }
 
-// timeOffsets is a slice of timeOffsets, it satisfies sort.Interface
-type timeOffsets []timeOffset
+// timeSchedules is a slice of timeSchedules, it satisfies sort.Interface
+type timeSchedules []timeSchedule
 
-// Len is the number of elements in timeOffsets.
-func (offs timeOffsets) Len() int { return len(offs) }
+// Len is the number of elements in timeSchedules.
+func (s timeSchedules) Len() int { return len(s) }
 
-// Less tells is timeOffsets[i] comes before timeOffsets[j]. We sort in an ascending order.
-func (offs timeOffsets) Less(i, j int) bool {
-	return offs[i].approxDuration() < offs[j].approxDuration()
+// Less tells is timeSchedules[i] comes before timeSchedules[j]. We sort in an ascending order.
+func (s timeSchedules) Less(i, j int) bool {
+	return s[i].approxDuration() < s[j].approxDuration()
 }
 
 // Swap swaps the elements with indexes i and j.
-func (offs timeOffsets) Swap(i, j int) { offs[i], offs[j] = offs[j], offs[i] }
+func (s timeSchedules) Swap(i, j int) { s[i], s[j] = s[j], s[i] }

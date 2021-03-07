@@ -31,14 +31,14 @@ func TestWhenRotate_baseRotateTime(t *testing.T) {
 	tests := []struct {
 		name string
 		r    WhenRotate
-		want timeOffset
+		want timeSchedule
 	}{
-		{name: "hourly_lower", r: "h", want: timeOffset{}},
-		{name: "daily_lower", r: "d", want: timeOffset{}},
-		{name: "monthly_lower", r: "m", want: timeOffset{day: 1}},
-		{name: "yearly_lower", r: "y", want: timeOffset{day: 1, month: 1}},
-		{name: "invalid_singlechar", r: "a", want: timeOffset{day: 1, month: 1}},
-		{name: "invalid_multiplechar", r: "hour", want: timeOffset{day: 1, month: 1}},
+		{name: "hourly_lower", r: "h", want: timeSchedule{}},
+		{name: "daily_lower", r: "d", want: timeSchedule{}},
+		{name: "monthly_lower", r: "m", want: timeSchedule{day: 1}},
+		{name: "yearly_lower", r: "y", want: timeSchedule{day: 1, month: 1}},
+		{name: "invalid_singlechar", r: "a", want: timeSchedule{day: 1, month: 1}},
+		{name: "invalid_multiplechar", r: "hour", want: timeSchedule{day: 1, month: 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestWhenRotate_baseRotateTime(t *testing.T) {
 	}
 }
 
-func TestWhenRotate_parseTimeoffset(t *testing.T) {
+func TestWhenRotate_parsetimeSchedule(t *testing.T) {
 	type args struct {
 		offsetStr string
 	}
@@ -57,13 +57,13 @@ func TestWhenRotate_parseTimeoffset(t *testing.T) {
 		name    string
 		r       WhenRotate
 		args    args
-		want    timeOffset
+		want    timeSchedule
 		wantErr bool
 	}{
-		{name: "hourly", r: "h", args: args{offsetStr: "1445"}, want: timeOffset{minute: 14, second: 45}},
-		{name: "daily", r: "d", args: args{offsetStr: "191445"}, want: timeOffset{hour: 19, minute: 14, second: 45}},
-		{name: "monthly", r: "m", args: args{offsetStr: "15 191445"}, want: timeOffset{day: 15, hour: 19, minute: 14, second: 45}},
-		{name: "yearly", r: "y", args: args{offsetStr: "0615 191445"}, want: timeOffset{month: 6, day: 15, hour: 19, minute: 14, second: 45}},
+		{name: "hourly", r: "h", args: args{offsetStr: "1445"}, want: timeSchedule{minute: 14, second: 45}},
+		{name: "daily", r: "d", args: args{offsetStr: "191445"}, want: timeSchedule{hour: 19, minute: 14, second: 45}},
+		{name: "monthly", r: "m", args: args{offsetStr: "15 191445"}, want: timeSchedule{day: 15, hour: 19, minute: 14, second: 45}},
+		{name: "yearly", r: "y", args: args{offsetStr: "0615 191445"}, want: timeSchedule{month: 6, day: 15, hour: 19, minute: 14, second: 45}},
 		{name: "when_error", r: "hour", wantErr: true},
 		{name: "hourly_format_invalid", r: "h", args: args{offsetStr: "114451"}, wantErr: true},
 		{name: "daily_format_invalid", r: "D", args: args{offsetStr: "1 114451"}, wantErr: true},
@@ -79,13 +79,13 @@ func TestWhenRotate_parseTimeoffset(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.r.parseTimeoffset(tt.args.offsetStr)
+			got, err := tt.r.parseTimeSchedule(tt.args.offsetStr)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("WhenRotate.parseTimeoffset() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("WhenRotate.parsetimeSchedule() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WhenRotate.parseTimeoffset() = %v, want %v", got, tt.want)
+				t.Errorf("WhenRotate.parsetimeSchedule() = %v, want %v", got, tt.want)
 			}
 		})
 	}

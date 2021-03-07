@@ -18,7 +18,7 @@ func TestFile_init(t *testing.T) {
 		UseLocal             bool
 		Backups              int
 		BackupTimeFormat     string
-		timeRotationSchedule []timeOffset
+		timeRotationSchedule []timeSchedule
 	}
 	tests := []struct {
 		name    string
@@ -43,11 +43,9 @@ func TestFile_init(t *testing.T) {
 				UseLocal:         true,
 				Backups:          40,
 				BackupTimeFormat: "Jan _2 15:04:05",
-				timeRotationSchedule: []timeOffset{
-					{hour: -1, minute: 14, second: 30},
+				timeRotationSchedule: []timeSchedule{
 					{minute: 12},
 					{minute: 14, second: 30},
-					{hour: 1, minute: 12},
 				},
 			},
 		},
@@ -58,10 +56,8 @@ func TestFile_init(t *testing.T) {
 				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
 				When:             "d",
 				BackupTimeFormat: "2006-01-02.150405",
-				timeRotationSchedule: []timeOffset{
-					{day: -1},
+				timeRotationSchedule: []timeSchedule{
 					{},
-					{day: 1},
 				},
 			},
 		},
@@ -76,8 +72,7 @@ func TestFile_init(t *testing.T) {
 				When:             "y",
 				RotationSchedule: []string{"1202 231155", "0102 082122", "0102 082122", "0109 150405", "0102 050405", "0102 054405", "0102 054432", "0611 150405"},
 				BackupTimeFormat: "2006-01-02.150405",
-				timeRotationSchedule: []timeOffset{
-					{year: -1, month: 12, day: 2, hour: 23, minute: 11, second: 55},
+				timeRotationSchedule: []timeSchedule{
 					{month: 1, day: 2, hour: 5, minute: 04, second: 5},
 					{month: 1, day: 2, hour: 5, minute: 44, second: 5},
 					{month: 1, day: 2, hour: 5, minute: 44, second: 32},
@@ -86,7 +81,6 @@ func TestFile_init(t *testing.T) {
 					{month: 1, day: 9, hour: 15, minute: 04, second: 5},
 					{month: 6, day: 11, hour: 15, minute: 04, second: 5},
 					{month: 12, day: 2, hour: 23, minute: 11, second: 55},
-					{year: 1, month: 1, day: 2, hour: 5, minute: 04, second: 5},
 				},
 			},
 		},
