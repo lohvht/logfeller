@@ -37,6 +37,28 @@ var (
 
 func (r WhenRotate) lower() WhenRotate { return WhenRotate(strings.ToLower(string(r))) }
 
+// interval returns the duration of an interval in whenRotate, given the time
+func (r WhenRotate) interval(t time.Time) time.Duration {
+	switch r {
+	case Hour:
+		return 1 * time.Hour
+	case Day:
+		return oneDay
+	case Month:
+		return time.Duration(daysIn(t.Month(), t.Year())) * oneDay
+	case Year:
+		return oneYear
+	default:
+		// Default, should not reach here
+		return oneDay
+	}
+}
+
+// daysIn returns the number of days in a month for a given year.
+func daysIn(m time.Month, year int) int {
+	return time.Date(year, m+1, 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
 // valid returns an error if its not valid
 func (r WhenRotate) valid() error {
 	switch r {
@@ -135,6 +157,72 @@ func (r WhenRotate) parseTimeSchedule(offsetStr string) (timeSchedule, error) { 
 		}
 	}
 	return off, nil
+}
+
+// offsetCurrentTime returns the offset time from the current time passed in.
+func (r WhenRotate) offsetCurrentTime(currentTime time.Time, sch timeSchedule) time.Time {
+	year, month, day := currentTime.Date()
+	hour := currentTime.Hour()
+	loc := currentTime.Location()
+	switch r {
+	case Hour:
+		return time.Date(year, month, day, hour, sch.minute, sch.second, 0, loc)
+	case Day:
+		return time.Date(year, month, day, sch.hour, sch.minute, sch.second, 0, loc)
+	case Month:
+		return time.Date(year, month, sch.day, sch.hour, sch.minute, sch.second, 0, loc)
+	case Year:
+		return time.Date(year, time.Month(sch.month), sch.day, sch.hour, sch.minute, sch.second, 0, loc)
+	default:
+		return currentTime
+	}
+}
+
+// AddTime adds n Hours/Days/Months/Years depending on WhenRotate
+func (r WhenRotate) AddTime(t time.Time, n int) time.Time {
+	switch r {
+	case Hour:
+		return t.Add(time.Duration(n) * time.Hour)
+	case Day:
+		return t.AddDate(0, 0, n)
+	case Month:
+		return t.AddDate(0, n, 0)
+	case Year:
+		return t.AddDate(n, 0, 0)
+	default:
+		return t
+	}
+}
+
+// calcRotationTimes calculates the next and previous rotation times based on
+// the timeRotationSchedule.
+// This function ignores any potential problems with daylight savings
+func (r WhenRotate) calcRotationTimes(t time.Time, timeSchedules []timeSchedule) (prev, next time.Time) {
+	// Check first offset time first by picking out the last entry and minus 1 Hour/Day/Month/Year
+	firstOffsetToCheck := r.AddTime(r.offsetCurrentTime(t, timeSchedules[len(timeSchedules)-1]), -1)
+	if firstOffsetToCheck.After(t) {
+		return prev, firstOffsetToCheck
+	}
+	var lastOffsetToCheck time.Time
+	next = firstOffsetToCheck
+	for i, sch := range timeSchedules {
+		prev = next
+		next = r.offsetCurrentTime(t, sch)
+		if i == 0 {
+			// last offset entry to check is the 1st offset time but add 1 Hour/Day/Month/Year
+			lastOffsetToCheck = r.AddTime(next, 1)
+		}
+		if !next.After(t) {
+			continue
+		}
+		return prev, next
+	}
+	if lastOffsetToCheck.After(t) {
+		return next, lastOffsetToCheck
+	}
+	// Code should not reach here, if it did anyway it will move the date
+	// forward by 1 * (when), and prev will be assumed to be - 1 * (when)
+	return t.Add(-r.interval(t)), t.Add(r.interval(t))
 }
 
 // timeSchedule is the rough schedule of when to rotate. By itself this struct

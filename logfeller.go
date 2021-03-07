@@ -129,3 +129,7 @@ func (f *File) Time(t time.Time) time.Time {
 	return t
 }
 
+func (f *File) updateRotateAt(prevRotateAt, rotateAt time.Time) {
+	f.prevRotateAt = prevRotateAt
+	f.rotateAt = rotateAt
+}
