@@ -120,3 +120,12 @@ func (f *File) UnmarshalJSON(data []byte) error {
 // func (f *File) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // return nil
 // }
+
+// Time handles time for File.
+func (f *File) Time(t time.Time) time.Time {
+	if !f.UseLocal {
+		return t.UTC()
+	}
+	return t
+}
+
