@@ -18,6 +18,9 @@ switch ($target) {
         $fullcoverpath = "$env:TEMP\$COVER_PROFILE_FILENAME.$TIMESTAMP.out"
         Write-Output "Running tests over $packages and saving output to $fullcoverpath"
         go test $packages -covermode count -coverprofile $fullcoverpath
+        if(!$?) {
+           exit $?
+        }
         go tool cover -html="$fullcoverpath"
     }
     lint {
