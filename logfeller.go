@@ -77,7 +77,6 @@ const (
 )
 
 func (f *File) init() error {
-	var err error
 	f.initOnce.Do(func() {
 		if f.Filename == "" {
 			basename := filepath.Base(os.Args[0])
@@ -92,7 +91,7 @@ func (f *File) init() error {
 		f.fileBase = baseFilename[:len(baseFilename)-len(f.ext)]
 		f.When = f.When.lower()
 		if errInner := f.When.valid(); errInner != nil {
-			err = fmt.Errorf("logfeller: init failed, %w", errInner)
+			f.initErr = fmt.Errorf("logfeller: init failed, %w", errInner)
 			return
 		}
 		// Populate the rotation schedule offsets
@@ -100,7 +99,7 @@ func (f *File) init() error {
 		for _, schedule := range f.RotationSchedule {
 			sch, errInner := f.When.parseTimeSchedule(schedule)
 			if errInner != nil {
-				err = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
+				f.initErr = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
 				return
 			}
 			f.timeRotationSchedule = append(f.timeRotationSchedule, sch)
@@ -113,7 +112,7 @@ func (f *File) init() error {
 			f.BackupTimeFormat = defaultBackupTimeFormat
 		}
 	})
-	return err
+	return f.initErr
 }
 
 // UnmarshalJSON unmarshals JSON to the file handler and init f too.
