@@ -29,10 +29,10 @@ type File struct {
 	// RotationSchedule defines the exact time that the rotator should be
 	// rotating. The values that should be passed into depends on the When field.
 	// If When is:
-	// 	"h" - pass in strings of format "0405" (MMSS)
-	// 	"d" - pass in strings of format "150405" (HHMMSS)
-	// 	"m" - pass in strings of format "02 150405" (DD HHMMSS)
-	// 	"y" - pass in strings of format "0102 150405" (mmDD HHMMSS)
+	// 	"h" - pass in strings of format "04:05" (MM:SS)
+	// 	"d" - pass in strings of format "1504:05" (HHMM:SS)
+	// 	"m" - pass in strings of format "02 1504:05" (DD HHMM:SS)
+	// 	"y" - pass in strings of format "0102 1504:05" (mmDD HHMM:SS)
 	// where mm, DD, HH, MM, SS represents month, day, hour, minute
 	// and seconds respectively.
 	// If RotationSchedule is empty, a sensible default will be used instead.
@@ -44,7 +44,7 @@ type File struct {
 	// not delete backups.
 	Backups int `json:"backups" yaml:"backups"`
 	// BackupTimeFormat is the backup time format used when logfeller rotates
-	// the file. Defaults to "2006-01-02.150405" if empty
+	// the file. Defaults to ".2006-01-02T1504-05" if empty
 	// See the golang `time` package for more example formats
 	// https://golang.org/pkg/time/#Time.Format
 	BackupTimeFormat string `json:"backup_time_format" yaml:"backup-time-format"`
@@ -61,7 +61,7 @@ type File struct {
 	fileBase string
 	// ext is the file's extension.
 	// This field is populated on init()
-	ext    string
+	ext string
 
 	rotateAt     time.Time
 	prevRotateAt time.Time
@@ -69,7 +69,12 @@ type File struct {
 	initOnce sync.Once
 }
 
-const defaultBackupTimeFormat = "2006-01-02.150405"
+const (
+	defaultBackupTimeFormat             = ".2006-01-02T1504-05"
+	fileOpenMode            os.FileMode = 0644
+	dirCreateMode           os.FileMode = 0755
+	fileFlag                            = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+)
 
 func (f *File) init() error {
 	var err error
@@ -94,12 +99,12 @@ func (f *File) init() error {
 		f.timeRotationSchedule = make([]timeSchedule, 0, len(f.RotationSchedule))
 		for _, schedule := range f.RotationSchedule {
 			sch, errInner := f.When.parseTimeSchedule(schedule)
-				if errInner != nil {
-					err = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
-					return
-				}
-			f.timeRotationSchedule = append(f.timeRotationSchedule, sch)
+			if errInner != nil {
+				err = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
+				return
 			}
+			f.timeRotationSchedule = append(f.timeRotationSchedule, sch)
+		}
 		if len(f.RotationSchedule) == 0 {
 			f.timeRotationSchedule = append(f.timeRotationSchedule, f.When.baseRotateTime())
 		}

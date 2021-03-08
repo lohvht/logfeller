@@ -60,10 +60,10 @@ func TestWhenRotate_parsetimeSchedule(t *testing.T) {
 		want    timeSchedule
 		wantErr bool
 	}{
-		{name: "hourly", r: "h", args: args{offsetStr: "1445"}, want: timeSchedule{minute: 14, second: 45}},
-		{name: "daily", r: "d", args: args{offsetStr: "191445"}, want: timeSchedule{hour: 19, minute: 14, second: 45}},
-		{name: "monthly", r: "m", args: args{offsetStr: "15 191445"}, want: timeSchedule{day: 15, hour: 19, minute: 14, second: 45}},
-		{name: "yearly", r: "y", args: args{offsetStr: "0615 191445"}, want: timeSchedule{month: 6, day: 15, hour: 19, minute: 14, second: 45}},
+		{name: "hourly", r: "h", args: args{offsetStr: "14:45"}, want: timeSchedule{minute: 14, second: 45}},
+		{name: "daily", r: "d", args: args{offsetStr: "1914:45"}, want: timeSchedule{hour: 19, minute: 14, second: 45}},
+		{name: "monthly", r: "m", args: args{offsetStr: "15 1914:45"}, want: timeSchedule{day: 15, hour: 19, minute: 14, second: 45}},
+		{name: "yearly", r: "y", args: args{offsetStr: "0615 1914:45"}, want: timeSchedule{month: 6, day: 15, hour: 19, minute: 14, second: 45}},
 		{name: "when_error", r: "hour", wantErr: true},
 		{name: "hourly_format_invalid", r: "h", args: args{offsetStr: "114451"}, wantErr: true},
 		{name: "daily_format_invalid", r: "D", args: args{offsetStr: "1 114451"}, wantErr: true},

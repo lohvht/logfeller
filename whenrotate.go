@@ -29,10 +29,10 @@ const (
 )
 
 var (
-	hourOffsetRegex  = regexp.MustCompile(`^(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
-	dayOffsetRegex   = regexp.MustCompile(`^(?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
-	monthOffsetRegex = regexp.MustCompile(`^(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
-	yearOffsetRegex  = regexp.MustCompile(`^(?P<months>\d{2})(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2})(?P<seconds>\d{2})$`)
+	hourOffsetRegex  = regexp.MustCompile(`^(?P<minutes>\d{2}):(?P<seconds>\d{2})$`)
+	dayOffsetRegex   = regexp.MustCompile(`^(?P<hours>\d{2})(?P<minutes>\d{2}):(?P<seconds>\d{2})$`)
+	monthOffsetRegex = regexp.MustCompile(`^(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2}):(?P<seconds>\d{2})$`)
+	yearOffsetRegex  = regexp.MustCompile(`^(?P<months>\d{2})(?P<days>\d{2}) (?P<hours>\d{2})(?P<minutes>\d{2}):(?P<seconds>\d{2})$`)
 )
 
 func (r WhenRotate) lower() WhenRotate { return WhenRotate(strings.ToLower(string(r))) }
@@ -95,7 +95,7 @@ func (r WhenRotate) baseRotateTime() timeSchedule {
 // a day only has a maximum of 24 hours
 // This does not handle year offset specifically for the month,
 // it just takes an upper bound of the max number of days a month has (i.e. 31 days),
-// so for When = "y", "0231 150405" will still be considered valid.
+// so for When = "y", "0231 1504:05" will still be considered valid.
 func (r WhenRotate) parseTimeSchedule(offsetStr string) (timeSchedule, error) { //nolint:gocyclo // Let cyclo err here go
 	var offsetRegex *regexp.Regexp
 	when := r
@@ -114,10 +114,10 @@ func (r WhenRotate) parseTimeSchedule(offsetStr string) (timeSchedule, error) { 
 	match := offsetRegex.FindStringSubmatch(offsetStr)
 	if len(match) != len(offsetRegex.SubexpNames()) {
 		validFormatMsg := map[WhenRotate]string{
-			Hour:  `"0405" (MMSS)`,
-			Day:   `"150405" (HHMMSS)`,
-			Month: `"02 150405" (DD HHMMSS)`,
-			Year:  `"0102 150405" (mmDD HHMMSS)`,
+			Hour:  `"04:05" (MM:SS)`,
+			Day:   `"1504:05" (HHMM:SS)`,
+			Month: `"02 1504:05" (DD HHMM:SS)`,
+			Year:  `"0102 1504:05" (mmDD HHMM:SS)`,
 		}
 		return timeSchedule{}, fmt.Errorf("invalid offset passed in for 'when' value '%s', expected value of format %s, got '%s'", r, validFormatMsg[when], offsetStr)
 	}
