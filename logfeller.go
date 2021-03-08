@@ -53,16 +53,18 @@ type File struct {
 	// These offsets are sorted.
 	// This field is populated on init()
 	timeRotationSchedule []timeSchedule
-
 	// directory is the directory of the current Filename
-	// This field is populated in init()
+	// This field is populated on init()
 	directory string
+	// fileBase is the base name of the file without extension
+	// This field is populated on init()
+	fileBase string
+	// ext is the file's extension.
+	// This field is populated on init()
+	ext    string
 
-	// // mu protects the following fields below
-	// mu           sync.Mutex
-	// rotateAt     time.Time
-	// prevRotateAt time.Time
-	// file         *os.File
+	rotateAt     time.Time
+	prevRotateAt time.Time
 
 	initOnce sync.Once
 }
@@ -78,7 +80,11 @@ func (f *File) init() error {
 			name := trimmedCmdName + "-logfeller.log"
 			f.Filename = filepath.Join(os.TempDir(), name)
 		}
+		baseFilename := filepath.Base(f.Filename)
 		f.directory = filepath.Dir(f.Filename)
+		f.ext = filepath.Ext(baseFilename)
+		// get the base file name without extensions
+		f.fileBase = baseFilename[:len(baseFilename)-len(f.ext)]
 		f.When = f.When.lower()
 		if errInner := f.When.valid(); errInner != nil {
 			err = fmt.Errorf("logfeller: init failed, %w", errInner)

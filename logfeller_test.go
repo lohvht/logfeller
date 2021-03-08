@@ -19,6 +19,9 @@ func TestFile_init(t *testing.T) {
 		Backups              int
 		BackupTimeFormat     string
 		timeRotationSchedule []timeSchedule
+		directory            string
+		fileBase             string
+		ext                  string
 	}
 	tests := []struct {
 		name    string
@@ -31,7 +34,7 @@ func TestFile_init(t *testing.T) {
 			f: &File{
 				Filename:         "file.txt",
 				When:             "H",
-				RotationSchedule: []string{"1430", "1200"},
+				RotationSchedule: []string{"14:30", "12:00"},
 				UseLocal:         true,
 				Backups:          40,
 				BackupTimeFormat: "Jan _2 15:04:05",
@@ -39,7 +42,7 @@ func TestFile_init(t *testing.T) {
 			want: wantFields{
 				Filename:         "file.txt",
 				When:             "h",
-				RotationSchedule: []string{"1430", "1200"},
+				RotationSchedule: []string{"14:30", "12:00"},
 				UseLocal:         true,
 				Backups:          40,
 				BackupTimeFormat: "Jan _2 15:04:05",
@@ -47,6 +50,9 @@ func TestFile_init(t *testing.T) {
 					{minute: 12},
 					{minute: 14, second: 30},
 				},
+				directory: ".",
+				fileBase:  "file",
+				ext:       ".txt",
 			},
 		},
 		{
@@ -55,23 +61,26 @@ func TestFile_init(t *testing.T) {
 			want: wantFields{
 				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
 				When:             "d",
-				BackupTimeFormat: "2006-01-02.150405",
+				BackupTimeFormat: ".2006-01-02T1504-05",
 				timeRotationSchedule: []timeSchedule{
 					{},
 				},
+				directory: os.TempDir(),
+				fileBase:  "logfeller.test-logfeller",
+				ext:       ".log",
 			},
 		},
 		{
 			name: "sort_schedules_offsets",
 			f: &File{
 				When:             "Y",
-				RotationSchedule: []string{"1202 231155", "0102 082122", "0102 082122", "0109 150405", "0102 050405", "0102 054405", "0102 054432", "0611 150405"},
+				RotationSchedule: []string{"1202 2311:55", "0102 0821:22", "0102 0821:22", "0109 1504:05", "0102 0504:05", "0102 0544:05", "0102 0544:32", "0611 1504:05"},
 			},
 			want: wantFields{
 				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
 				When:             "y",
-				RotationSchedule: []string{"1202 231155", "0102 082122", "0102 082122", "0109 150405", "0102 050405", "0102 054405", "0102 054432", "0611 150405"},
-				BackupTimeFormat: "2006-01-02.150405",
+				RotationSchedule: []string{"1202 2311:55", "0102 0821:22", "0102 0821:22", "0109 1504:05", "0102 0504:05", "0102 0544:05", "0102 0544:32", "0611 1504:05"},
+				BackupTimeFormat: ".2006-01-02T1504-05",
 				timeRotationSchedule: []timeSchedule{
 					{month: 1, day: 2, hour: 5, minute: 04, second: 5},
 					{month: 1, day: 2, hour: 5, minute: 44, second: 5},
@@ -82,6 +91,9 @@ func TestFile_init(t *testing.T) {
 					{month: 6, day: 11, hour: 15, minute: 04, second: 5},
 					{month: 12, day: 2, hour: 23, minute: 11, second: 55},
 				},
+				directory: os.TempDir(),
+				fileBase:  "logfeller.test-logfeller",
+				ext:       ".log",
 			},
 		},
 		{
@@ -129,6 +141,15 @@ func TestFile_init(t *testing.T) {
 			if tt.f.BackupTimeFormat != tt.want.BackupTimeFormat {
 				t.Errorf("File.BackupTimeFormat = %v, want %v", tt.f.BackupTimeFormat, tt.want.BackupTimeFormat)
 			}
+			if tt.f.directory != tt.want.directory {
+				t.Errorf("File.directory = %v, want %v", tt.f.directory, tt.want.directory)
+			}
+			if tt.f.fileBase != tt.want.fileBase {
+				t.Errorf("File.fileBase = %v, want %v", tt.f.fileBase, tt.want.fileBase)
+			}
+			if tt.f.ext != tt.want.ext {
+				t.Errorf("File.ext = %v, want %v", tt.f.ext, tt.want.ext)
+			}
 		})
 	}
 }
@@ -159,7 +180,7 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 				data: []byte(`{
 	"filename":         "some-file-proper-name.txt",
 	"when":             "M",
-	"rotation_schedule": ["03 143000", "10 120000"],
+	"rotation_schedule": ["03 1430:00", "10 1200:00"],
 	"use_local":         true,
 	"backups":          69,
 	"backup_time_format": "Jan _2 15:04:05"
@@ -168,7 +189,7 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 			want: wantFields{
 				Filename:         "some-file-proper-name.txt",
 				When:             "m",
-				RotationSchedule: []string{"03 143000", "10 120000"},
+				RotationSchedule: []string{"03 1430:00", "10 1200:00"},
 				UseLocal:         true,
 				Backups:          69,
 				BackupTimeFormat: "Jan _2 15:04:05",
