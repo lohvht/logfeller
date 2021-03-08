@@ -194,37 +194,6 @@ func (r WhenRotate) AddTime(t time.Time, n int) time.Time {
 	}
 }
 
-// calcRotationTimes calculates the next and previous rotation times based on
-// the timeRotationSchedule.
-// This function ignores any potential problems with daylight savings
-func (r WhenRotate) calcRotationTimes(t time.Time, timeSchedules []timeSchedule) (prev, next time.Time) {
-	// Check first offset time first by picking out the last entry and minus 1 Hour/Day/Month/Year
-	firstOffsetToCheck := r.AddTime(r.offsetCurrentTime(t, timeSchedules[len(timeSchedules)-1]), -1)
-	if firstOffsetToCheck.After(t) {
-		return prev, firstOffsetToCheck
-	}
-	var lastOffsetToCheck time.Time
-	next = firstOffsetToCheck
-	for i, sch := range timeSchedules {
-		prev = next
-		next = r.offsetCurrentTime(t, sch)
-		if i == 0 {
-			// last offset entry to check is the 1st offset time but add 1 Hour/Day/Month/Year
-			lastOffsetToCheck = r.AddTime(next, 1)
-		}
-		if !next.After(t) {
-			continue
-		}
-		return prev, next
-	}
-	if lastOffsetToCheck.After(t) {
-		return next, lastOffsetToCheck
-	}
-	// Code should not reach here, if it did anyway it will move the date
-	// forward by 1 * (when), and prev will be assumed to be - 1 * (when)
-	return t.Add(-r.interval(t)), t.Add(r.interval(t))
-}
-
 // timeSchedule is the rough schedule of when to rotate. By itself this struct
 // has no meaning, it needs to be paired with WhenRotate.
 type timeSchedule struct {
