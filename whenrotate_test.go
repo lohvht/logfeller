@@ -69,13 +69,13 @@ func TestWhenRotate_parsetimeSchedule(t *testing.T) {
 		{name: "daily_format_invalid", r: "D", args: args{offsetStr: "1 114451"}, wantErr: true},
 		{name: "monthly_format_invalid", r: "m", args: args{offsetStr: "111 114451"}, wantErr: true},
 		{name: "yearly_format_invalid", r: "Y", args: args{offsetStr: "31111 114451"}, wantErr: true},
-		{name: "second_exeed", r: "y", args: args{offsetStr: "0615 190061"}, wantErr: true},
-		{name: "minute_exeed", r: "y", args: args{offsetStr: "0615 196159"}, wantErr: true},
-		{name: "hour_exeed", r: "y", args: args{offsetStr: "0615 245959"}, wantErr: true},
-		{name: "day_exeed", r: "y", args: args{offsetStr: "0632 245959"}, wantErr: true},
-		{name: "day_too_low", r: "y", args: args{offsetStr: "0600 245959"}, wantErr: true},
-		{name: "month_exceed", r: "y", args: args{offsetStr: "1300 245959"}, wantErr: true},
-		{name: "month_too_low", r: "y", args: args{offsetStr: "0000 245959"}, wantErr: true},
+		{name: "second_exeed", r: "y", args: args{offsetStr: "0615 1900:61"}, wantErr: true},
+		{name: "minute_exeed", r: "y", args: args{offsetStr: "0615 1961:59"}, wantErr: true},
+		{name: "hour_exeed", r: "y", args: args{offsetStr: "0615 2459:59"}, wantErr: true},
+		{name: "day_exeed", r: "y", args: args{offsetStr: "0632 2459:59"}, wantErr: true},
+		{name: "day_too_low", r: "y", args: args{offsetStr: "0600 2459:59"}, wantErr: true},
+		{name: "month_exceed", r: "y", args: args{offsetStr: "1300 2459:59"}, wantErr: true},
+		{name: "month_too_low", r: "y", args: args{offsetStr: "0000 2459:59"}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
