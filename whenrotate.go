@@ -199,7 +199,6 @@ func (r WhenRotate) AddTime(t time.Time, n int) time.Time {
 // timeSchedule is the rough schedule of when to rotate. By itself this struct
 // has no meaning, it needs to be paired with WhenRotate.
 type timeSchedule struct {
-	year   int
 	month  int
 	day    int
 	hour   int
@@ -208,8 +207,7 @@ type timeSchedule struct {
 }
 
 func (t *timeSchedule) approxDuration() time.Duration {
-	return time.Duration(t.year)*oneYear +
-		time.Duration(t.month)*approxOneMonth +
+	return time.Duration(t.month)*approxOneMonth +
 		time.Duration(t.day)*oneDay +
 		time.Duration(t.hour)*time.Hour +
 		time.Duration(t.minute)*time.Minute +
