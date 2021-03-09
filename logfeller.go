@@ -181,14 +181,6 @@ func (f *File) Close() error {
 	return f.close()
 }
 
-// Rotate causes Logger to close the existing log file and immediately create a
-// new one.
-func (f *File) Rotate() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.rotate()
-}
-
 // close closes the file if it is open.
 // sets file to nil.
 func (f *File) close() error {
