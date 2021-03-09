@@ -186,7 +186,7 @@ func (f *File) Close() error {
 func (f *File) Rotate() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.rotate(true)
+	return f.rotate()
 }
 
 // close closes the file if it is open.
@@ -201,11 +201,11 @@ func (f *File) close() error {
 }
 
 // rotate closes the file and rotates it after that.
-func (f *File) rotate(forceMove bool) error {
+func (f *File) rotate() error {
 	if err := f.close(); err != nil {
 		return fmt.Errorf("rotate close error: %w", err)
 	}
-	if err := f.rotateOpen(forceMove); err != nil {
+	if err := f.rotateOpen(); err != nil {
 		return fmt.Errorf("rotate open error: %w", err)
 	}
 	return nil
@@ -220,7 +220,7 @@ func (f *File) openExistingOrNew() error {
 		// If opening something new that previously didnt exist, we rotate
 		// based on current time.
 		f.updateRotateAt(f.calcRotationTimes(time.Now()))
-		return f.rotateOpen(false)
+		return f.rotateOpen()
 	}
 	if err != nil {
 		return fmt.Errorf("error getting file info: %w", err)
@@ -235,7 +235,7 @@ func (f *File) openExistingOrNew() error {
 	fh, err := os.OpenFile(f.Filename, fileFlag, fileOpenMode)
 	if err != nil {
 		// last resort
-		return f.rotateOpen(false)
+		return f.rotateOpen()
 	}
 	f.file = fh
 	return nil
@@ -255,18 +255,16 @@ func (f *File) shouldRotate() bool {
 
 func (f *File) checkAndRotate() error {
 	if f.shouldRotate() {
-		err := f.rotate(false)
+		err := f.rotate()
 		f.updateRotateAt(f.calcRotationTimes(time.Now()))
 		return err
 	}
 	return nil
 }
 
-// rotateOpen moves any existing file and opens a new file for writing.
+// rotateOpen moves any existing log file and opens a new log file for writing.
 // This function assumes that the original file has already been closed.
-// If forceMove is true, it will move file to backup even if the original
-// file was empty.
-func (f *File) rotateOpen(forceMove bool) error {
+func (f *File) rotateOpen() error {
 	if err := os.MkdirAll(f.directory, dirCreateMode); err != nil {
 		return fmt.Errorf("cannot make directories for new logfiles at %s: %v", f.Filename, err)
 	}
@@ -279,11 +277,10 @@ func (f *File) rotateOpen(forceMove bool) error {
 		dstFilename := f.filenameWithTimestamp(f.time(f.prevRotateAt))
 		originalFilestat, err1 := os.Stat(f.Filename)
 		_, err2 := os.Stat(dstFilename)
-		if err1 == nil && os.IsNotExist(err2) {
-			if forceMove || originalFilestat.Size() > 0 {
-				if err := os.Rename(f.Filename, dstFilename); err != nil {
-					return fmt.Errorf("unable to rename logfile %s to %s with err: %w", f.Filename, dstFilename, err)
-				}
+		originalFileExistAndIsNotEmpty := err1 == nil && originalFilestat.Size() > 0
+		if originalFileExistAndIsNotEmpty && os.IsNotExist(err2) {
+			if err := os.Rename(f.Filename, dstFilename); err != nil {
+				return fmt.Errorf("unable to rename logfile %s to %s with err: %w", f.Filename, dstFilename, err)
 			}
 		}
 	}
