@@ -281,11 +281,11 @@ func (f *File) rotateOpen(forceMove bool) error {
 		_, err2 := os.Stat(dstFilename)
 		if err1 == nil && os.IsNotExist(err2) {
 			if forceMove || originalFilestat.Size() > 0 {
-			if err := os.Rename(f.Filename, dstFilename); err != nil {
-				return fmt.Errorf("unable to rename logfile %s to %s with err: %w", f.Filename, dstFilename, err)
+				if err := os.Rename(f.Filename, dstFilename); err != nil {
+					return fmt.Errorf("unable to rename logfile %s to %s with err: %w", f.Filename, dstFilename, err)
+				}
 			}
 		}
-	}
 	}
 	fh, err := os.OpenFile(f.Filename, fileFlag, mode)
 	if err != nil {
@@ -303,7 +303,7 @@ func (f *File) calcRotationTimes(t time.Time) (prev, next time.Time) {
 	r := f.When
 	timeSchedules := f.timeRotationSchedule
 	// Check first offset time first by picking out the last entry and minus 1 Hour/Day/Month/Year
-	firstOffsetToCheck := r.AddTime(r.offsetCurrentTime(t, timeSchedules[len(timeSchedules)-1]), -1)
+	firstOffsetToCheck := r.AddTime(r.nearestScheduledTime(t, timeSchedules[len(timeSchedules)-1]), -1)
 	if firstOffsetToCheck.After(t) {
 		return prev, firstOffsetToCheck
 	}
@@ -311,7 +311,7 @@ func (f *File) calcRotationTimes(t time.Time) (prev, next time.Time) {
 	next = firstOffsetToCheck
 	for i, sch := range timeSchedules {
 		prev = next
-		next = r.offsetCurrentTime(t, sch)
+		next = r.nearestScheduledTime(t, sch)
 		if i == 0 {
 			// last offset entry to check is the 1st offset time but add 1 Hour/Day/Month/Year
 			lastOffsetToCheck = r.AddTime(next, 1)

@@ -159,8 +159,10 @@ func (r WhenRotate) parseTimeSchedule(offsetStr string) (timeSchedule, error) { 
 	return off, nil
 }
 
-// offsetCurrentTime returns the offset time from the current time passed in.
-func (r WhenRotate) offsetCurrentTime(currentTime time.Time, sch timeSchedule) time.Time {
+// nearestScheduledTime takes current time passed in and a schedule and returns
+// the closest by the time schedule given. The behaviour of the time schedule
+// the value of when.
+func (r WhenRotate) nearestScheduledTime(currentTime time.Time, sch timeSchedule) time.Time {
 	year, month, day := currentTime.Date()
 	hour := currentTime.Hour()
 	loc := currentTime.Location()
