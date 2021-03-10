@@ -363,20 +363,20 @@ func (f *File) trim() error {
 	if f.Backups <= 0 {
 		return nil
 	}
-	fileInfos, err := ioutil.ReadDir(f.directory)
+	dirEntries, err := os.ReadDir(f.directory)
 	if err != nil {
 		return fmt.Errorf("cannot read log file directory %s: %w", f.directory, err)
 	}
 	type fileInfoWithTime struct {
 		t time.Time
-		fs.FileInfo
+		fs.DirEntry
 	}
 	var backupFIs []fileInfoWithTime
-	for _, fi := range fileInfos {
-		if fi.IsDir() {
+	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() {
 			continue
 		}
-		filename := fi.Name()
+		filename := dirEntry.Name()
 		if !strings.HasPrefix(filename, f.fileBase) || strings.HasSuffix(filename, f.ext) {
 			// file is not a backup file if the fileBase and ext dont match
 			continue
@@ -387,7 +387,7 @@ func (f *File) trim() error {
 		if err != nil {
 			continue
 		}
-		backupFIs = append(backupFIs, fileInfoWithTime{t, fi})
+		backupFIs = append(backupFIs, fileInfoWithTime{t, dirEntry})
 	}
 	sort.SliceStable(backupFIs, func(i, j int) bool { return backupFIs[i].t.After(backupFIs[j].t) })
 
