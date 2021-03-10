@@ -232,7 +232,7 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-// TestFile contains a set of generic test case dealing with how rotational logic
+// TestFile contains a set of generic test cases dealing with how rotational logic
 // and writing works with logfeller.
 func TestFile(t *testing.T) {
 	tests := []struct {
@@ -252,6 +252,7 @@ func TestFile(t *testing.T) {
 				rf := File{Filename: filepath.Join(dirname, fname)}
 				b := []byte("BARBAR")
 				n, err := rf.Write(b)
+				defer rf.Close()
 				if err != nil {
 					t.Fatalf("TestFile write error; filename=%s;err=%v", fname, err)
 				}
@@ -275,6 +276,7 @@ func TestFile(t *testing.T) {
 					t.Fatalf("TestFile write existing file error; filename=%s;err=%v", fname, err)
 				}
 				rf := File{Filename: fullpath}
+				defer rf.Close()
 				b := []byte("BARBAR2")
 				n, err := rf.Write(b)
 				if err != nil {
@@ -296,7 +298,12 @@ func TestFile(t *testing.T) {
 			if err != nil {
 				t.Fatalf("TestFile should not fail at creating test dir; dir=%s, error = %v", dirname, err)
 			}
-			defer os.RemoveAll(dirname)
+			defer func() {
+				errInner := os.RemoveAll(dirname)
+				if errInner != nil {
+					t.Errorf("TestFile failed to cleanup test folder; dir=%s, err=%v", dirname, errInner)
+				}
+			}()
 
 			filenames := tt.do(t, dirname)
 			if len(filenames) != len(tt.expectedFilenamesToContent) {

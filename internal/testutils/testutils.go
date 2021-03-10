@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const defaultTimeFormat = "20062006-01-02-1504"
+const defaultTimeFormat = "20062006-01-02-1504-05"
 
 // MkTestDir creates a test directory in os.TempDir()/<name>-<timePrefix>
 // It returns the path to the directory created.
