@@ -60,8 +60,8 @@ func TestFile_init(t *testing.T) {
 			},
 		},
 		{
-			name: "omit_most_fields",
-			f:    &File{When: "D"},
+			name: "omit_all_fields",
+			f:    &File{},
 			want: wantFields{
 				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
 				When:             "d",

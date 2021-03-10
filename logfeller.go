@@ -100,7 +100,11 @@ func (f *File) init() error {
 		f.ext = filepath.Ext(baseFilename)
 		// get the base file name without extensions
 		f.fileBase = baseFilename[:len(baseFilename)-len(f.ext)]
+		if f.When == "" {
+			f.When = Day
+		} else {
 		f.When = f.When.lower()
+		}
 		if errInner := f.When.valid(); errInner != nil {
 			f.initErr = fmt.Errorf("logfeller: init failed, %w", errInner)
 			return
