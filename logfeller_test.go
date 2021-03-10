@@ -8,10 +8,13 @@ package logfeller
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/lohvht/logfeller/internal/testutils"
 )
 
 func TestFile_init(t *testing.T) {
@@ -228,3 +231,105 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+// TestFile contains a set of generic test case dealing with how rotational logic
+// and writing works with logfeller.
+func TestFile(t *testing.T) {
+	tests := []struct {
+		name string
+		// the actual test to act on, should return the filenames that were
+		// written by the the rotational file handler. This is also where we run
+		// can other assertions that arent general.
+		do func(t testing.TB, dirname string) []string
+		// expectedFilenamesToContent is a map of filenames (without dir) to
+		// the expected content
+		expectedFilenamesToContent map[string][]byte
+	}{
+		{
+			name: "write_new_file",
+			do: func(t testing.TB, dirname string) []string {
+				fname := "foo.log"
+				rf := File{Filename: filepath.Join(dirname, fname)}
+				b := []byte("BARBAR")
+				n, err := rf.Write(b)
+				if err != nil {
+					t.Fatalf("TestFile write error; filename=%s;err=%v", fname, err)
+				}
+				if n != len(b) {
+					t.Fatalf("TestFile write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+				}
+				return []string{fname}
+			},
+			expectedFilenamesToContent: map[string][]byte{
+				"foo.log": []byte("BARBAR"),
+			},
+		},
+		{
+			name: "write_to_existing_file",
+			do: func(t testing.TB, dirname string) []string {
+				fname := "foo.log"
+				fullpath := filepath.Join(dirname, fname)
+				// write an existing file
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				if err != nil {
+					t.Fatalf("TestFile write existing file error; filename=%s;err=%v", fname, err)
+				}
+				rf := File{Filename: fullpath}
+				b := []byte("BARBAR2")
+				n, err := rf.Write(b)
+				if err != nil {
+					t.Fatalf("TestFile write error; filename=%s;err=%v", fname, err)
+				}
+				if n != len(b) {
+					t.Fatalf("TestFile write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+				}
+				return []string{fname}
+			},
+			expectedFilenamesToContent: map[string][]byte{
+				"foo.log": []byte("BARBAREXISTING\nBARBAR2"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dirname, err := testutils.MkTestDir(tt.name)
+			if err != nil {
+				t.Fatalf("TestFile should not fail at creating test dir; dir=%s, error = %v", dirname, err)
+			}
+			defer os.RemoveAll(dirname)
+
+			filenames := tt.do(t, dirname)
+			if len(filenames) != len(tt.expectedFilenamesToContent) {
+				t.Fatalf("TestFile len of filenames written doesn't match expected filenames;filenames=%s, expectedFilenamesToContent = %v",
+					filenames, tt.expectedFilenamesToContent,
+				)
+			}
+			for _, fn := range filenames {
+				fullpath := filepath.Join(dirname, fn)
+				finfo, err := os.Stat(fullpath)
+				if err != nil {
+					t.Errorf("TestFile should not fail at getting filestat; filename=%s, err=%v", fullpath, err)
+					continue
+				}
+				if finfo.IsDir() {
+					t.Errorf("TestFile test file written should not be a directory; filename=%s", fullpath)
+					continue
+				}
+				fcontent, err := ioutil.ReadFile(fullpath)
+				if err != nil {
+					t.Errorf("TestFile should not fail reading written file content; filename=%s, err=%v", fullpath, err)
+					continue
+				}
+				expectContent, ok := tt.expectedFilenamesToContent[fn]
+				if !ok {
+					t.Errorf("TestFile filename written is not expected; filename=%s", fullpath)
+					continue
+				}
+				if !reflect.DeepEqual(fcontent, expectContent) {
+					t.Errorf("TestFile file=%s, filecontent=%s, wantcontent=%s", fullpath, fcontent, expectContent)
+				}
+			}
+		})
+	}
+}
+

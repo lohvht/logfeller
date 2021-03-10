@@ -69,7 +69,7 @@ func (r WhenRotate) valid() error {
 	case Hour, Day, Month, Year:
 		return nil
 	default:
-		return fmt.Errorf("invalid rotation interval specified: %s", r)
+		return fmt.Errorf("invalid when rotate value specified: %s, accepted values are %v", r, []WhenRotate{Hour, Day, Month, Year})
 	}
 }
 
