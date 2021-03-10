@@ -3,14 +3,22 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 // package logfeller implements a library for writing to and rotating files
-// based on a timed schedule.
+// based on a timed schedule. This project is inspired by
+// https://github.com/natefinch/lumberjack but serves a different niche.
+// Logfeller handles which file to write to based not on
+// max size but on a schedule (such as every day at 12am etc.)
+//
+// As with lumberjack, logfeller is intended to be a pluggable component in a
+// logging stack that controls how files are written and rotated.
+//
+// Logfeller works with any package that can write to an io.Writer, such
+// as the standard library's log package.
 package logfeller
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
