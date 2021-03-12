@@ -86,6 +86,7 @@ type File struct {
 
 	initOnce sync.Once
 	initErr  error
+	nowFunc  func() time.Time
 }
 
 const (
@@ -111,7 +112,7 @@ func (f *File) init() error {
 		if f.When == "" {
 			f.When = Day
 		} else {
-		f.When = f.When.lower()
+			f.When = f.When.lower()
 		}
 		if errInner := f.When.valid(); errInner != nil {
 			f.initErr = fmt.Errorf("logfeller: init failed, %w", errInner)
@@ -140,9 +141,17 @@ func (f *File) init() error {
 				_ = f.trim()
 			}
 		}()
+		if f.nowFunc == nil {
+			f.setNowFunc(time.Now)
+		}
 	})
 	return f.initErr
 }
+
+// setNowFunc sets the nowFunc f uses to determine filenames, rotation times
+// etc. This function is used to mock out the time function used such that
+// we can have control over it in tests.
+func (f *File) setNowFunc(nf func() time.Time) { f.nowFunc = nf }
 
 // UnmarshalJSON unmarshals JSON to the file handler and init f too.
 func (f *File) UnmarshalJSON(data []byte) error {
@@ -227,7 +236,7 @@ func (f *File) openExistingOrNew() error {
 	if os.IsNotExist(err) {
 		// If opening something new that previously didnt exist, we rotate
 		// based on current time.
-		f.updateRotateAt(f.calcRotationTimes(time.Now()))
+		f.updateRotateAt(f.calcRotationTimes(f.nowFunc()))
 		return f.rotateOpen()
 	}
 	if err != nil {
@@ -236,8 +245,8 @@ func (f *File) openExistingOrNew() error {
 	// file exists, update rotate at based on file's modified time and check if should rotate
 	f.updateRotateAt(f.calcRotationTimes(fileInfo.ModTime()))
 	err = f.checkAndRotate()
-	if err != nil {
-		return err
+	if err == nil && f.file != nil {
+		return nil
 	}
 	// did not rotate, set try to set file
 	fh, err := os.OpenFile(f.Filename, fileFlag, fileOpenMode)
@@ -258,13 +267,13 @@ func (f *File) time(t time.Time) time.Time {
 }
 
 func (f *File) shouldRotate() bool {
-	return f.time(time.Now()).After(f.rotateAt)
+	return f.time(f.nowFunc()).After(f.rotateAt)
 }
 
 func (f *File) checkAndRotate() error {
 	if f.shouldRotate() {
 		err := f.rotate()
-		f.updateRotateAt(f.calcRotationTimes(time.Now()))
+		f.updateRotateAt(f.calcRotationTimes(f.nowFunc()))
 		return err
 	}
 	return nil
@@ -336,11 +345,11 @@ func (f *File) calcRotationTimes(t time.Time) (prev, next time.Time) {
 
 // filenameWithTimestamp returns a new filename with timestamps from the given
 // time t passed in. If the filename was /var/www/some-app/info.log,
-// then the resultant filename will be /var/www/some-app/info-<timstamp>.log
+// then the resultant filename will be /var/www/some-app/info<timstamp>.log
 // It uses the timstamp format from f.BackupTimeFormat.
 func (f *File) filenameWithTimestamp(t time.Time) string {
 	timestamp := t.Format(f.BackupTimeFormat)
-	return filepath.Join(f.directory, fmt.Sprint(f.fileBase, "-", timestamp, f.ext))
+	return filepath.Join(f.directory, fmt.Sprint(f.fileBase, timestamp, f.ext))
 }
 
 // updateRotateAt updates prevRotateAt and rotateAt

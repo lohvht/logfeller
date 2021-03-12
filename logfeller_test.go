@@ -8,11 +8,13 @@ package logfeller
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/lohvht/logfeller/internal/testutils"
 )
@@ -120,43 +122,20 @@ func TestFile_init(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.f.init()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("File.init() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			testutils.TrueOrFatal(t, (err != nil) == tt.wantErr, "File.init() error = %v, wantErr %v", err, tt.wantErr)
 			if err != nil {
 				return
 			}
-			if tt.f.Filename != tt.want.Filename {
-				t.Errorf("File.Filename = %v, want %v", tt.f.Filename, tt.want.Filename)
-			}
-			if tt.f.When != tt.want.When {
-				t.Errorf("File.When = %v, want %v", tt.f.When, tt.want.When)
-			}
-			if !reflect.DeepEqual(tt.f.RotationSchedule, tt.want.RotationSchedule) {
-				t.Errorf("File.RotationSchedule = %v, want %v", tt.f.RotationSchedule, tt.want.RotationSchedule)
-			}
-			if tt.f.UseLocal != tt.want.UseLocal {
-				t.Errorf("File.UseLocal = %v, want %v", tt.f.UseLocal, tt.want.UseLocal)
-			}
-			if tt.f.Backups != tt.want.Backups {
-				t.Errorf("File.Backups = %v, want %v", tt.f.Backups, tt.want.Backups)
-			}
-			if !reflect.DeepEqual(tt.f.timeRotationSchedule, tt.want.timeRotationSchedule) {
-				t.Errorf("File.timeRotationSchedule = %v, want %v", tt.f.timeRotationSchedule, tt.want.timeRotationSchedule)
-			}
-			if tt.f.BackupTimeFormat != tt.want.BackupTimeFormat {
-				t.Errorf("File.BackupTimeFormat = %v, want %v", tt.f.BackupTimeFormat, tt.want.BackupTimeFormat)
-			}
-			if tt.f.directory != tt.want.directory {
-				t.Errorf("File.directory = %v, want %v", tt.f.directory, tt.want.directory)
-			}
-			if tt.f.fileBase != tt.want.fileBase {
-				t.Errorf("File.fileBase = %v, want %v", tt.f.fileBase, tt.want.fileBase)
-			}
-			if tt.f.ext != tt.want.ext {
-				t.Errorf("File.ext = %v, want %v", tt.f.ext, tt.want.ext)
-			}
+			testutils.TrueOrError(t, tt.f.Filename == tt.want.Filename, "File.Filename = %v, want %v", tt.f.Filename, tt.want.Filename)
+			testutils.TrueOrError(t, tt.f.When == tt.want.When, "File.When = %v, want %v", tt.f.When, tt.want.When)
+			testutils.TrueOrError(t, reflect.DeepEqual(tt.f.RotationSchedule, tt.want.RotationSchedule), "File.RotationSchedule = %v, want %v", tt.f.RotationSchedule, tt.want.RotationSchedule)
+			testutils.TrueOrError(t, tt.f.UseLocal == tt.want.UseLocal, "File.UseLocal = %v, want %v", tt.f.UseLocal, tt.want.UseLocal)
+			testutils.TrueOrError(t, tt.f.Backups == tt.want.Backups, "File.Backups = %v, want %v", tt.f.Backups, tt.want.Backups)
+			testutils.TrueOrError(t, reflect.DeepEqual(tt.f.timeRotationSchedule, tt.want.timeRotationSchedule), "File.timeRotationSchedule = %v, want %v", tt.f.timeRotationSchedule, tt.want.timeRotationSchedule)
+			testutils.TrueOrError(t, tt.f.BackupTimeFormat == tt.want.BackupTimeFormat, "File.BackupTimeFormat = %v, want %v", tt.f.BackupTimeFormat, tt.want.BackupTimeFormat)
+			testutils.TrueOrError(t, tt.f.directory == tt.want.directory, "File.directory = %v, want %v", tt.f.directory, tt.want.directory)
+			testutils.TrueOrError(t, tt.f.fileBase == tt.want.fileBase, "File.fileBase = %v, want %v", tt.f.fileBase, tt.want.fileBase)
+			testutils.TrueOrError(t, tt.f.ext == tt.want.ext, "File.ext = %v, want %v", tt.f.ext, tt.want.ext)
 		})
 	}
 }
@@ -207,27 +186,15 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var f File
 			err := json.Unmarshal(tt.args.data, &f)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("File.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			testutils.TrueOrFatal(t, (err != nil) == tt.wantErr, "File.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			if err != nil {
 				return
 			}
-			if f.Filename != tt.want.Filename {
-				t.Errorf("File.Filename = %v, want %v", f.Filename, tt.want.Filename)
-			}
-			if f.When != tt.want.When {
-				t.Errorf("File.When = %v, want %v", f.When, tt.want.When)
-			}
-			if !reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule) {
-				t.Errorf("File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
-			}
-			if f.UseLocal != tt.want.UseLocal {
-				t.Errorf("File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
-			}
-			if f.Backups != tt.want.Backups {
-				t.Errorf("File.Backups = %v, want %v", f.Backups, tt.want.Backups)
-			}
+			testutils.TrueOrError(t, f.Filename == tt.want.Filename, "File.Filename = %v, want %v", f.Filename, tt.want.Filename)
+			testutils.TrueOrError(t, f.When == tt.want.When, "File.When = %v, want %v", f.When, tt.want.When)
+			testutils.TrueOrError(t, reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule), "File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
+			testutils.TrueOrError(t, f.UseLocal == tt.want.UseLocal, "File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
+			testutils.TrueOrError(t, f.Backups == tt.want.Backups, "File.Backups = %v, want %v", f.Backups, tt.want.Backups)
 		})
 	}
 }
@@ -237,106 +204,261 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 func TestFile(t *testing.T) {
 	tests := []struct {
 		name string
-		// the actual test to act on, should return the filenames that were
-		// written by the the rotational file handler. This is also where we run
-		// can other assertions that arent general.
-		do func(t testing.TB, dirname string) []string
-		// expectedFilenamesToContent is a map of filenames (without dir) to
-		// the expected content
-		expectedFilenamesToContent map[string][]byte
+		// the actual test to act on, should return the filenames and expected
+		// contents that were written by the the rotational file handler.
+		// This is also where we run can other assertions that arent generic.
+		do func(t testing.TB, dirname string) map[string][]byte
 	}{
 		{
 			name: "write_new_file",
-			do: func(t testing.TB, dirname string) []string {
+			do: func(t testing.TB, dirname string) map[string][]byte {
 				fname := "foo.log"
+
 				rf := File{Filename: filepath.Join(dirname, fname)}
 				b := []byte("BARBAR")
 				n, err := rf.Write(b)
 				defer rf.Close()
-				if err != nil {
-					t.Fatalf("TestFile write error; filename=%s;err=%v", fname, err)
-				}
-				if n != len(b) {
-					t.Fatalf("TestFile write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
-				}
-				return []string{fname}
-			},
-			expectedFilenamesToContent: map[string][]byte{
-				"foo.log": []byte("BARBAR"),
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+				return map[string][]byte{fname: b}
 			},
 		},
 		{
 			name: "write_to_existing_file",
-			do: func(t testing.TB, dirname string) []string {
+			do: func(t testing.TB, dirname string) map[string][]byte {
 				fname := "foo.log"
 				fullpath := filepath.Join(dirname, fname)
 				// write an existing file
 				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
-				if err != nil {
-					t.Fatalf("TestFile write existing file error; filename=%s;err=%v", fname, err)
-				}
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
 				rf := File{Filename: fullpath}
 				defer rf.Close()
 				b := []byte("BARBAR2")
 				n, err := rf.Write(b)
-				if err != nil {
-					t.Fatalf("TestFile write error; filename=%s;err=%v", fname, err)
-				}
-				if n != len(b) {
-					t.Fatalf("TestFile write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
-				}
-				return []string{fname}
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+				return map[string][]byte{fname: []byte("BARBAREXISTING\nBARBAR2")}
 			},
-			expectedFilenamesToContent: map[string][]byte{
-				"foo.log": []byte("BARBAREXISTING\nBARBAR2"),
+		},
+		{
+			name: "write_multiple_times_within_the_hour_to_existing_file_no_rotate",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				staticTime := time.Date(2020, 8, 9, 10, 0, 0, 0, time.Local)
+				var mockNow = func() time.Time { return staticTime }
+				var mockNow20minsAfter = func() time.Time { return staticTime.Add(20 * time.Minute) }
+				var mockNow40minsAfter = func() time.Time { return staticTime.Add(40 * time.Minute) }
+				fname := "foo.log"
+				fullpath := filepath.Join(dirname, fname)
+				// write an existing file
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
+				rf := File{Filename: fullpath, When: "H", nowFunc: mockNow}
+				defer rf.Close()
+				b := []byte("BARBAR2\n")
+				n, err := rf.Write(b)
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+
+				rf.setNowFunc(mockNow20minsAfter)
+				b = []byte("BARBAR3\n")
+				n, err = rf.Write(b)
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+
+				rf.setNowFunc(mockNow40minsAfter)
+				b = []byte("BARBAR4\n")
+				n, err = rf.Write(b)
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+
+				return map[string][]byte{fname: []byte("BARBAREXISTING\nBARBAR2\nBARBAR3\nBARBAR4\n")}
+			},
+		},
+		{
+			name: "rotate_immedately_before_write",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				now := time.Now()
+				oneDayLater := now.Add(24 * time.Hour)
+				var mock1DayLater = func() time.Time { return oneDayLater }
+				fname := "foo.log"
+				fullpath := filepath.Join(dirname, fname)
+				// write an existing file
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
+				// Force rotation by mocking now to return now 1 day later
+				rf := File{Filename: fullpath, nowFunc: mock1DayLater}
+				defer rf.Close()
+				b := []byte("BARBAR2\n")
+				n, err := rf.Write(b)
+				testutils.TrueOrFatal(t, err == nil, "write error; filename=%s;err=%v", fname, err)
+				testutils.TrueOrFatal(t, n == len(b), "write length mismatch; filename=%s;n=%d;datalen=%d", fname, n, len(b))
+
+				rotatedFilename := fmt.Sprint("foo", testutils.TimeOfDay(time.Now(), 0, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				return map[string][]byte{
+					fname:           []byte("BARBAR2\n"),
+					rotatedFilename: []byte("BARBAREXISTING\n"),
+				}
+			},
+		},
+		{
+			name: "rotate_daily_with_multiple_schedules",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				startOfDay := testutils.TimeOfDay(time.Now(), 0, 0, 0)
+				fname := "foo.log"
+				fullpath := filepath.Join(dirname, fname)
+				yesterday1600 := startOfDay.Add(-8 * time.Hour)
+
+				b1 := []byte("BARBAREXISTING\n")
+				// write an existing file, mock it to say last edited was yesterday 4pm
+				err := ioutil.WriteFile(fullpath, b1, 0644)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+				err = os.Chtimes(fullpath, yesterday1600, yesterday1600)
+				testutils.TrueOrFatal(t, err == nil, "should not have error changing modified times; filename=%s;err=%v", fname, err)
+
+				// Force rotation by mocking now to return now 1 day later
+				rf := File{
+					Filename:         fullpath,
+					When:             "d",
+					RotationSchedule: []string{"0100:00", "0830:00", "1400:00", "1900:00"},
+					nowFunc:          func() time.Time { return startOfDay },
+					UseLocal:         true,
+				}
+				defer rf.Close()
+
+				// First rotation, file was created at 1600, so rotation time will be 1400
+				firstRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(yesterday1600, 14, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				b2 := []byte("BARBAR2\n")
+				n, err := rf.Write(b2)
+				testutils.TrueOrFatal(t, err == nil, "write error b2 err: content=%s,err=%v", b2, err)
+				testutils.TrueOrFatal(t, n == len(b2), "write b2 length mismatch; n=%d, expected=%d", n, len(b2))
+				// Another write but within the same timeslot (13mins from start of day)
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(13 * time.Minute) })
+				b3 := []byte("BARBAR3\n")
+				n, err = rf.Write(b3)
+				testutils.TrueOrFatal(t, err == nil, "write error b3 err: content=%s,err=%v", b3, err)
+				testutils.TrueOrFatal(t, n == len(b3), "write b3 length mismatch; n=%d, expected=%d", n, len(b3))
+				// Another write but within the same timeslot (49mins from start of day)
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(49 * time.Minute) })
+				b4 := []byte("BARBAR4\n")
+				n, err = rf.Write(b4)
+				testutils.TrueOrFatal(t, err == nil, "write error b4 err: content=%s,err=%v", b4, err)
+				testutils.TrueOrFatal(t, n == len(b4), "write b4 length mismatch; n=%d, expected=%d", n, len(b4))
+
+				// Second rotation, write at 0105am, rotote and filename should be at 7pm
+				secondRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(yesterday1600, 19, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(65 * time.Minute) })
+				b5 := []byte("BARBAR5\n")
+				n, err = rf.Write(b5)
+				testutils.TrueOrFatal(t, err == nil, "write error b5 err: content=%s,err=%v", b5, err)
+				testutils.TrueOrFatal(t, n == len(b5), "write b5 length mismatch; n=%d, expected=%d", n, len(b5))
+
+				// Third rotation, write at 9am, rotate and filename should be at 1am
+				thirdRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(startOfDay, 1, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(9 * time.Hour) })
+				b6 := []byte("BARBAR6\n")
+				n, err = rf.Write(b6)
+				testutils.TrueOrFatal(t, err == nil, "write error b6 err: content=%s,err=%v", b6, err)
+				testutils.TrueOrFatal(t, n == len(b6), "write b6 length mismatch; n=%d, expected=%d", n, len(b6))
+				// another write, no rotate at 11am
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(11 * time.Hour) })
+				b7 := []byte("BARBAR7\n")
+				n, err = rf.Write(b7)
+				testutils.TrueOrFatal(t, err == nil, "write error b7 err: content=%s,err=%v", b7, err)
+				testutils.TrueOrFatal(t, n == len(b7), "write b7 length mismatch; n=%d, expected=%d", n, len(b7))
+
+				// Fourth rotation, write at 3pm, rotate and filename should be at 8.30am
+				fourthRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(startOfDay, 8, 30, 0).Format(defaultBackupTimeFormat), ".log")
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(15 * time.Hour) })
+				b8 := []byte("BARBAR8\n")
+				n, err = rf.Write(b8)
+				testutils.TrueOrFatal(t, err == nil, "write error b8 err: content=%s,err=%v", b8, err)
+				testutils.TrueOrFatal(t, n == len(b8), "write b8 length mismatch; n=%d, expected=%d", n, len(b8))
+				// another write, no rotate at 5pm
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(17 * time.Hour) })
+				b9 := []byte("BARBAR9\n")
+				n, err = rf.Write(b9)
+				testutils.TrueOrFatal(t, err == nil, "write error b9 err: content=%s,err=%v", b9, err)
+				testutils.TrueOrFatal(t, n == len(b9), "write b9 length mismatch; n=%d, expected=%d", n, len(b9))
+
+				// Fifth rotation, write at 8pm, rotate and filename should be at 2pm
+				fifthRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(startOfDay, 14, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(20 * time.Hour) })
+				b10 := []byte("BARBAR10\n")
+				n, err = rf.Write(b10)
+				testutils.TrueOrFatal(t, err == nil, "write error b10 err: content=%s,err=%v", b10, err)
+				testutils.TrueOrFatal(t, n == len(b10), "write b10 length mismatch; n=%d, expected=%d", n, len(b10))
+				// another write, no rotate at 11pm
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(23 * time.Hour) })
+				b11 := []byte("BARBAR11\n")
+				n, err = rf.Write(b11)
+				testutils.TrueOrFatal(t, err == nil, "write error b11 err: content=%s,err=%v", b11, err)
+				testutils.TrueOrFatal(t, n == len(b11), "write b11 length mismatch; n=%d, expected=%d", n, len(b11))
+
+				// Sixth rotation, write at 2am, rotate and filename should be at 7pm
+				sixthRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(startOfDay, 19, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(26 * time.Hour) })
+				b12 := []byte("BARBAR12\n")
+				n, err = rf.Write(b12)
+				testutils.TrueOrFatal(t, err == nil, "write error b12 err: content=%s,err=%v", b12, err)
+				testutils.TrueOrFatal(t, n == len(b12), "write b12 length mismatch; n=%d, expected=%d", n, len(b12))
+				// another write, no rotate at 4am
+				rf.setNowFunc(func() time.Time { return startOfDay.Add(28 * time.Hour) })
+				b13 := []byte("BARBAR13\n")
+				n, err = rf.Write(b13)
+				testutils.TrueOrFatal(t, err == nil, "write error b13 err: content=%s,err=%v", b13, err)
+				testutils.TrueOrFatal(t, n == len(b13), "write b13 length mismatch; n=%d, expected=%d", n, len(b13))
+
+				return map[string][]byte{
+					firstRotateFilename:  []byte("BARBAREXISTING\n"),
+					secondRotateFilename: []byte("BARBAR2\nBARBAR3\nBARBAR4\n"),
+					thirdRotateFilename:  []byte("BARBAR5\n"),
+					fourthRotateFilename: []byte("BARBAR6\nBARBAR7\n"),
+					fifthRotateFilename:  []byte("BARBAR8\nBARBAR9\n"),
+					sixthRotateFilename:  []byte("BARBAR10\nBARBAR11\n"),
+					fname:                []byte("BARBAR12\nBARBAR13\n"),
+				}
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dirname, err := testutils.MkTestDir(tt.name)
-			if err != nil {
-				t.Fatalf("TestFile should not fail at creating test dir; dir=%s, error = %v", dirname, err)
-			}
+			testutils.TrueOrFatal(t, err == nil, "should not fail at creating test dir; dir=%s, error = %v", dirname, err)
 			defer func() {
 				errInner := os.RemoveAll(dirname)
-				if errInner != nil {
-					t.Errorf("TestFile failed to cleanup test folder; dir=%s, err=%v", dirname, errInner)
-				}
+				testutils.TrueOrFatal(t, errInner == nil, "failed to cleanup test folder; dir=%s, err=%v", dirname, errInner)
 			}()
 
-			filenames := tt.do(t, dirname)
-			if len(filenames) != len(tt.expectedFilenamesToContent) {
-				t.Fatalf("TestFile len of filenames written doesn't match expected filenames;filenames=%s, expectedFilenamesToContent = %v",
-					filenames, tt.expectedFilenamesToContent,
+			expectedFilenamesAndContents := tt.do(t, dirname)
+			dirEntries, err := os.ReadDir(dirname)
+			testutils.TrueOrFatal(t, err == nil, "should not fail at reading dir entries; dirname=%s,err=%v", dirname, err)
+			for _, de := range dirEntries {
+				if de.IsDir() {
+					t.Logf("file entry %s is a directory, skipping", de.Name())
+					continue
+				}
+				expectContent, ok := expectedFilenamesAndContents[de.Name()]
+				if testutils.TrueOrError(t, ok, "filename written is not expected; filename=%s", de.Name()) {
+					continue
+				}
+				delete(expectedFilenamesAndContents, de.Name())
+				fullpath := filepath.Join(dirname, de.Name())
+				fcontent, err := ioutil.ReadFile(fullpath)
+				if testutils.TrueOrError(t, err == nil, "should not fail reading written file content; filename=%s, err=%v", de.Name(), err) {
+					continue
+				}
+				testutils.TrueOrError(t, reflect.DeepEqual(fcontent, expectContent),
+					"filecontent should match; file=%s, filecontent=%s, wantcontent=%s", de.Name(), fcontent, expectContent,
 				)
 			}
-			for _, fn := range filenames {
-				fullpath := filepath.Join(dirname, fn)
-				finfo, err := os.Stat(fullpath)
-				if err != nil {
-					t.Errorf("TestFile should not fail at getting filestat; filename=%s, err=%v", fullpath, err)
-					continue
-				}
-				if finfo.IsDir() {
-					t.Errorf("TestFile test file written should not be a directory; filename=%s", fullpath)
-					continue
-				}
-				fcontent, err := ioutil.ReadFile(fullpath)
-				if err != nil {
-					t.Errorf("TestFile should not fail reading written file content; filename=%s, err=%v", fullpath, err)
-					continue
-				}
-				expectContent, ok := tt.expectedFilenamesToContent[fn]
-				if !ok {
-					t.Errorf("TestFile filename written is not expected; filename=%s", fullpath)
-					continue
-				}
-				if !reflect.DeepEqual(fcontent, expectContent) {
-					t.Errorf("TestFile file=%s, filecontent=%s, wantcontent=%s", fullpath, fcontent, expectContent)
-				}
+			// here if still have entries, its considered a failed test as
+			// the expected content doesnt exist
+			for wantFilename, wantContent := range expectedFilenamesAndContents {
+				t.Errorf("want files still exist that don't exist in directory;wantFilename=%s,wantContent=%s", wantFilename, wantContent)
 			}
 		})
 	}
 }
-
