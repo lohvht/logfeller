@@ -18,6 +18,7 @@ package logfeller
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -90,10 +91,12 @@ type File struct {
 }
 
 const (
-	defaultBackupTimeFormat             = ".2006-01-02T1504-05"
-	fileOpenMode            os.FileMode = 0644
-	dirCreateMode           os.FileMode = 0755
-	fileFlag                            = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	defaultBackupTimeFormat               = ".2006-01-02T1504-05"
+	fileOpenMode              os.FileMode = 0644
+	dirCreateMode             os.FileMode = 0755
+	fileWriteCreateAppendFlag             = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	fileWriteAppend                       = os.O_WRONLY | os.O_APPEND
+	oneMB                                 = 1024 * 1024
 )
 
 func (f *File) init() error {
@@ -228,6 +231,14 @@ func (f *File) rotate() error {
 	return nil
 }
 
+// Rotate closes the existing log file and flushes its content to backup.
+// new one. This is a helper function for applications to flush logs to backup.
+func (l *File) Rotate() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.rotate()
+}
+
 func (f *File) openExistingOrNew() error {
 	if err := f.triggerTrim(); err != nil {
 		return err
@@ -249,7 +260,7 @@ func (f *File) openExistingOrNew() error {
 		return nil
 	}
 	// did not rotate, set try to set file
-	fh, err := os.OpenFile(f.Filename, fileFlag, fileOpenMode)
+	fh, err := os.OpenFile(f.Filename, fileWriteCreateAppendFlag, fileOpenMode)
 	if err != nil {
 		// last resort
 		return f.rotateOpen()
@@ -295,13 +306,38 @@ func (f *File) rotateOpen() error {
 		originalFilestat, err1 := os.Stat(f.Filename)
 		_, err2 := os.Stat(dstFilename)
 		originalFileExistAndIsNotEmpty := err1 == nil && originalFilestat.Size() > 0
-		if originalFileExistAndIsNotEmpty && os.IsNotExist(err2) {
-			if err := os.Rename(f.Filename, dstFilename); err != nil {
-				return fmt.Errorf("unable to rename logfile %s to %s with err: %w", f.Filename, dstFilename, err)
+		if originalFileExistAndIsNotEmpty {
+			// original file exists and its not empty, ready to be rotated
+			if os.IsNotExist(err2) {
+				// If dst doesnt exist, move orignal file to dst path.
+				if err := os.Rename(f.Filename, dstFilename); err != nil {
+					return fmt.Errorf("unable to rename file %s to %s with err: %w", f.Filename, dstFilename, err)
+				}
+			}
+			if err2 == nil {
+				// If dstfilename is found somehow, we flush current file's content
+				// to this dst file
+				dstFile, err := os.OpenFile(dstFilename, fileWriteAppend, mode)
+				if err != nil {
+					return fmt.Errorf("open existing dst file %s to append fail with err: %w", dstFilename, err)
+				}
+				file, err := os.Open(f.Filename)
+				if err != nil {
+					return fmt.Errorf("open file %s to append to existing dst fail with err: %w", f.Filename, err)
+				}
+				buf := make([]byte, oneMB)
+				_, err = io.CopyBuffer(dstFile, file, buf)
+				if err != nil {
+					return fmt.Errorf("copy append from file %s to dst %s fail with error: %w", f.Filename, dstFilename, err)
+				}
+				dstFile.Close()
+				file.Close()
+				// Remove the existing file after appending, we ignore the error here
+				_ = os.Remove(f.Filename)
 			}
 		}
 	}
-	fh, err := os.OpenFile(f.Filename, fileFlag, mode)
+	fh, err := os.OpenFile(f.Filename, fileWriteCreateAppendFlag, mode)
 	if err != nil {
 		return err
 	}
