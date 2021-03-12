@@ -233,10 +233,10 @@ func (f *File) rotate() error {
 
 // Rotate closes the existing log file and flushes its content to backup.
 // new one. This is a helper function for applications to flush logs to backup.
-func (l *File) Rotate() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.rotate()
+func (f *File) Rotate() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.rotate()
 }
 
 func (f *File) openExistingOrNew() error {

@@ -15,8 +15,6 @@ linters-settings:
     min-occurrences: 3
   gocyclo:
     min-complexity: 15
-  goimports:
-    local-prefixes: git.garena.com # place all git.garena.com imports last
   golint:
     min-confidence: 0
   gomnd:

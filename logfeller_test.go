@@ -202,6 +202,7 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 // TestFile contains a set of generic test cases dealing with how rotational logic
 // and writing works with logfeller.
 func TestFile(t *testing.T) {
+	fname := "foo.log"
 	tests := []struct {
 		name string
 		// the actual test to act on, should return the filenames and expected
@@ -212,8 +213,6 @@ func TestFile(t *testing.T) {
 		{
 			name: "write_new_file",
 			do: func(t testing.TB, dirname string) map[string][]byte {
-				fname := "foo.log"
-
 				rf := File{Filename: filepath.Join(dirname, fname)}
 				b := []byte("BARBAR")
 				n, err := rf.Write(b)
@@ -226,10 +225,9 @@ func TestFile(t *testing.T) {
 		{
 			name: "write_to_existing_file",
 			do: func(t testing.TB, dirname string) map[string][]byte {
-				fname := "foo.log"
 				fullpath := filepath.Join(dirname, fname)
 				// write an existing file
-				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0600)
 				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
 
 				rf := File{Filename: fullpath}
@@ -248,10 +246,9 @@ func TestFile(t *testing.T) {
 				var mockNow = func() time.Time { return staticTime }
 				var mockNow20minsAfter = func() time.Time { return staticTime.Add(20 * time.Minute) }
 				var mockNow40minsAfter = func() time.Time { return staticTime.Add(40 * time.Minute) }
-				fname := "foo.log"
 				fullpath := filepath.Join(dirname, fname)
 				// write an existing file
-				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0600)
 				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
 
 				rf := File{Filename: fullpath, When: "H", nowFunc: mockNow}
@@ -282,10 +279,9 @@ func TestFile(t *testing.T) {
 				now := time.Now()
 				oneDayLater := now.Add(24 * time.Hour)
 				var mock1DayLater = func() time.Time { return oneDayLater }
-				fname := "foo.log"
 				fullpath := filepath.Join(dirname, fname)
 				// write an existing file
-				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0644)
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0600)
 				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
 
 				// Force rotation by mocking now to return now 1 day later
@@ -307,13 +303,12 @@ func TestFile(t *testing.T) {
 			name: "rotate_daily_with_multiple_schedules",
 			do: func(t testing.TB, dirname string) map[string][]byte {
 				startOfDay := testutils.TimeOfDay(time.Now(), 0, 0, 0)
-				fname := "foo.log"
 				fullpath := filepath.Join(dirname, fname)
 				yesterday1600 := startOfDay.Add(-8 * time.Hour)
 
 				b1 := []byte("BARBAREXISTING\n")
 				// write an existing file, mock it to say last edited was yesterday 4pm
-				err := ioutil.WriteFile(fullpath, b1, 0644)
+				err := ioutil.WriteFile(fullpath, b1, 0600)
 				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
 				err = os.Chtimes(fullpath, yesterday1600, yesterday1600)
 				testutils.TrueOrFatal(t, err == nil, "should not have error changing modified times; filename=%s;err=%v", fname, err)

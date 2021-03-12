@@ -37,10 +37,10 @@ func TrueOrError(t testing.TB, cond bool, fmtmsg string, args ...interface{}) bo
 
 // Time related utils
 
-func DateOfYear(t time.Time, month time.Month, day int, hour int, min int, sec int) time.Time {
+func DateOfYear(t time.Time, month time.Month, day, hour, min, sec int) time.Time {
 	return time.Date(t.Year(), month, day, hour, min, sec, 0, t.Location())
 }
 
-func TimeOfDay(t time.Time, hour int, min int, sec int) time.Time {
+func TimeOfDay(t time.Time, hour, min, sec int) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), hour, min, sec, 0, t.Location())
 }
