@@ -353,7 +353,7 @@ func (f *File) calcRotationTimes(t time.Time) (prev, next time.Time) {
 	r := f.When
 	timeSchedules := f.timeRotationSchedule
 	// Check first offset time first by picking out the last entry and minus 1 Hour/Day/Month/Year
-	firstOffsetToCheck := r.AddTime(r.nearestScheduledTime(t, timeSchedules[len(timeSchedules)-1]), -1)
+	firstOffsetToCheck := r.addTime(r.nearestScheduledTime(t, timeSchedules[len(timeSchedules)-1]), -1)
 	if firstOffsetToCheck.After(t) {
 		return prev, firstOffsetToCheck
 	}
@@ -364,7 +364,7 @@ func (f *File) calcRotationTimes(t time.Time) (prev, next time.Time) {
 		next = r.nearestScheduledTime(t, sch)
 		if i == 0 {
 			// last offset entry to check is the 1st offset time but add 1 Hour/Day/Month/Year
-			lastOffsetToCheck = r.AddTime(next, 1)
+			lastOffsetToCheck = r.addTime(next, 1)
 		}
 		if !next.After(t) {
 			continue

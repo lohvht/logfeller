@@ -365,7 +365,7 @@ func TestWhenRotate_AddTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.AddTime(tt.args.t, tt.args.n); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.r.addTime(tt.args.t, tt.args.n); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("WhenRotate.AddTime() = %v, want %v", got, tt.want)
 			}
 		})

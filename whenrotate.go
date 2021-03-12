@@ -184,8 +184,8 @@ func (r WhenRotate) nearestScheduledTime(currentTime time.Time, sch timeSchedule
 	}
 }
 
-// AddTime adds n Hours/Days/Months/Years depending on WhenRotate
-func (r WhenRotate) AddTime(t time.Time, n int) time.Time {
+// addTime adds n Hours/Days/Months/Years depending on WhenRotate
+func (r WhenRotate) addTime(t time.Time, n int) time.Time {
 	switch r {
 	case Hour:
 		return t.Add(time.Duration(n) * time.Hour)
