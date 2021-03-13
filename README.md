@@ -1,4 +1,4 @@
-# logfeller [![Go Reference](https://pkg.go.dev/badge/github.com/lohvht/logfeller.svg)](https://pkg.go.dev/github.com/lohvht/logfeller) 
+# logfeller [![Go Reference](https://pkg.go.dev/badge/github.com/lohvht/logfeller.svg)](https://pkg.go.dev/github.com/lohvht/logfeller) [![Build Status](https://travis-ci.com/lohvht/logfeller.svg?branch=main)](https://travis-ci.com/lohvht/logfeller) [![codecov](https://codecov.io/gh/lohvht/logfeller/branch/main/graph/badge.svg?token=Y988UGIV2D)](https://codecov.io/gh/lohvht/logfeller)
 
 ## Installation
 ```
@@ -7,20 +7,23 @@ go get github.com/lohvht/logfeller
 
 ## Overview
 
-Logfeller provides a file handler that rotates files on a rolling schedule. Logfeller is inspired by [lumberjack](https://github.com/natefinch/lumberjack) but serves a different niche. Logfeller handles which file to write to based on a rotational schedule instead of using a max size (such as every day at noon etc.)
+Logfeller provides a file handler that rotates files on a rolling schedule. Logfeller is inspired by [lumberjack](https://github.com/natefinch/lumberjack) but serves a different niche. It handles which file to write to based on a rotational schedule instead of the file's max size.
 
-Logfeller is meant to be a small pluggable component in a logging stack. It is intended to be a pluggable component that controls how files are written and rotated. to be a small pluggable component in a logging stack. It is intended to be a pluggable component that controls how files are written and rotated.
 
 ## Getting Started
 
-`*logfeller.File` implements the [io.Writer](https://golang.org/pkg/io/#Writer). This opens it up to the possibility of it being used in places where an `io.Writer` is needed, such as the the standard library's [log](https://golang.org/pkg/log)
+`*logfeller.File` implements the [io.Writer](https://golang.org/pkg/io/#Writer) interface. This opens it up to the possibility of it being used in places where an `io.Writer` is needed, such as the the standard library's [log](https://golang.org/pkg/log)
 
 ### Using `*logfeller.File`
 
+Logfeller contains `json` and `yaml` bindings so you may use [json.Unmarshal](https://golang.org/pkg/encoding/json/#Unmarshal) and [yaml.Unmarshal](https://pkg.go.dev/gopkg.in/yaml.v2) to marshal it into `*logfeller.File`
+
 ```
+// File is the rotational file handler. It writes to the filename specified
+// and will rotate based on the schedule passed in.
 type File struct {
-	// Filename is the filename to write to. Uses the filename
-	// `<cmdname>-logfeller.log` in os.TempDir() if empty.
+	// Filename is the filename to write to. If empty, uses the filename
+	// `<cmdname>-logfeller.log` within os.TempDir()
 	Filename string `json:"filename" yaml:"filename"`
 	// When tells the logger to rotate the file, it is case insensitive.
 	// Currently supported values are
@@ -29,8 +32,8 @@ type File struct {
 	// 	"m" - month
 	// 	"y" - year
 	When WhenRotate `json:"when" yaml:"when"`
-	// RotationSchedule defines the exact time that the rotator should be
-	// rotating. The values that should be passed into depends on the When field.
+	// RotationSchedule defines the when the rotation should be occur.
+	// The values that should be passed into depends on the When field.
 	// If When is:
 	// 	"h" - pass in strings of format "04:05" (MM:SS)
 	// 	"d" - pass in strings of format "1504:05" (HHMM:SS)
@@ -38,7 +41,13 @@ type File struct {
 	// 	"y" - pass in strings of format "0102 1504:05" (mmDD HHMM:SS)
 	// where mm, DD, HH, MM, SS represents month, day, hour, minute
 	// and seconds respectively.
-	// If RotationSchedule is empty, a sensible default will be used instead.
+	// If RotationSchedule is empty, a sensible default is depending on `When`
+	// will be used instead.
+	// If When is:
+	// 	"h" - "00:00" will be used (rotate on the 0th minute, 0th second of the hour)
+	// 	"d" - "0000:00" will be used (rotate at 12am daily)
+	// 	"m" - "01 0000:00" will be used (rotate on the 1st day at 12am monthly)
+	// 	"y" - "0101 0000:00" will be used (rotate on 1st Jan at 12am every year)
 	RotationSchedule []string `json:"rotation_schedule" yaml:"rotation-schedule"`
 	// UseLocal determines if the time used to rotate is based on the system's
 	// local time
@@ -46,16 +55,14 @@ type File struct {
 	// Backups maintains the number of backups to keep. If this is empty, do
 	// not delete backups.
 	Backups int `json:"backups" yaml:"backups"`
-	// BackupTimeFormat is the backup time format used when logfeller rotates
-	// the file. Defaults to ".2006-01-02T1504-05" if empty
+	// BackupTimeFormat is time format used for the backup file's encoded timestamp.
+	// Defaults to ".2006-01-02T1504-05" if empty.
 	// See the golang `time` package for more example formats
 	// https://golang.org/pkg/time/#Time.Format
 	BackupTimeFormat string `json:"backup_time_format" yaml:"backup-time-format"`
 	// contains filtered or unexported fields
 }
 ```
-
-Logfeller contains `json` and `yaml` bindings so you may use [json.Unmarshal](https://golang.org/pkg/encoding/json/#Unmarshal) and [yaml.Unmarshal](https://pkg.go.dev/gopkg.in/yaml.v2) to marshal it into `*logfeller.File`
 
 An example of how to unmarshal JSON into logfeller is shown below:
 ```
@@ -87,19 +94,17 @@ func main() {
 }
 ```
 
-## What does *logfeller.File do?
-
-*logfeller.File is an io.Writer that writes to the specified filename.
-
-*logfeller.File opens or creates the file on the first Write. If such a file exists, logfeller will check the file's modtime and rotate if it is due for rotation, otherwise, it will open and append to that file. 
-
 ### Rotational Logic
-Logfeller's rotational logic is Based on the `When` value specified. There are 4 values currently supported, `"h"`, `"d"`, `"m"` and `"y"`. This tells Logfeller to rotate hourly, daily, monthly or yearly respectively.
+Logfeller's rotational logic depends on the `When` value and `RotationalSchedule` specified.
 
-Based on the When value specified, logfeller will then check the RotationalSchedule. For example, If we choose to rotate daily and the rotational schedule provided is `"0000:00"` and `"1430:00"`, this tells logfeller to rotate at midnight and 2:30 pm. Using the same example, When we try to write to the file after midnight and we have yet to rotate yet, logfeller will rename the file by putting a timestamp of the previous rotate time as part of the filename, creating a backup. If a backup file of the previous rotate time already exists, logfeller will append the current file's content to that previous log file instead and the current file will be removed. After that, a new log file will be recreated using the original file name.
+For example, if `When` is `"d"` and RotationSchedule is `[]string{"0000:00", "1430:00"}`, This means that we would like to rotate daily at midnight and 2:30pm.
 
-The format of the backup file will be based on BackupTimeFormat specified.
+Using the same example above, upon writing to the file after midnight, Logfeller will check if it should rotate. If it has not rotated recently, logfeller will attempt to backup the file. The backup process renames the current file to one that contains a timestamp of the previous rotation time. If the backup file exists, the contents of the current file is written to the backup and then the current file will be deleted. After the backup, a new file will be created using the original file name.
 
-## Clearing Old Log Files
+The format of the timestamp on the backup file will be based on BackupTimeFormat specified.
 
-Logfeller may clear older backups if Backups > 0. The most recent files based on the timestamp encoded with BackupTimeFormat will be retained up to the number of Backups specified, the rest of those files will be removed. If Backups is 0, logfeller will not remove any files at all.
+### Backup Files
+
+Backups use the log file name given in the form `<name><timestamp><ext>` where name is the filename given without extension, timestamp is previous rotate time formatted with the BackupTimeFormat given and extension is the original extension.
+
+Whenever a new file is created, older backups may be cleared. The most recent files based on the timestamp encoded with BackupTimeFormat will be retained up to the number of Backups specified. If Backups is 0, no old backups will be deleted.

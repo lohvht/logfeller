@@ -3,13 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 // package logfeller implements a library for writing to and rotating files
-// based on a timed schedule. This project is inspired by
-// https://github.com/natefinch/lumberjack but serves a different niche.
-// Logfeller handles which file to write to based not on
-// max size but on a schedule (such as every day at 12am etc.)
-//
-// As with lumberjack, logfeller is intended to be a pluggable component in a
-// logging stack that controls how files are written and rotated.
+// based on a rolling schedule over a period of time.
 //
 // Logfeller works with any package that can write to an io.Writer, such
 // as the standard library's log package.
@@ -29,10 +23,10 @@ import (
 )
 
 // File is the rotational file handler. It writes to the filename specified
-// and will rotate based on the schedule passed in and the when field.
+// and will rotate based on the schedule passed in.
 type File struct {
-	// Filename is the filename to write to. Uses the filename
-	// `<cmdname>-logfeller.log` in os.TempDir() if empty.
+	// Filename is the filename to write to. If empty, uses the filename
+	// `<cmdname>-logfeller.log` within os.TempDir()
 	Filename string `json:"filename" yaml:"filename"`
 	// When tells the logger to rotate the file, it is case insensitive.
 	// Currently supported values are
@@ -41,8 +35,8 @@ type File struct {
 	// 	"m" - month
 	// 	"y" - year
 	When WhenRotate `json:"when" yaml:"when"`
-	// RotationSchedule defines the exact time that the rotator should be
-	// rotating. The values that should be passed into depends on the When field.
+	// RotationSchedule defines the when the rotation should be occur.
+	// The values that should be passed into depends on the When field.
 	// If When is:
 	// 	"h" - pass in strings of format "04:05" (MM:SS)
 	// 	"d" - pass in strings of format "1504:05" (HHMM:SS)
@@ -50,7 +44,13 @@ type File struct {
 	// 	"y" - pass in strings of format "0102 1504:05" (mmDD HHMM:SS)
 	// where mm, DD, HH, MM, SS represents month, day, hour, minute
 	// and seconds respectively.
-	// If RotationSchedule is empty, a sensible default will be used instead.
+	// If RotationSchedule is empty, a sensible default is depending on `When`
+	// will be used instead.
+	// If When is:
+	// 	"h" - "00:00" will be used (rotate on the 0th minute, 0th second of the hour)
+	// 	"d" - "0000:00" will be used (rotate at 12am daily)
+	// 	"m" - "01 0000:00" will be used (rotate on the 1st day at 12am monthly)
+	// 	"y" - "0101 0000:00" will be used (rotate on 1st Jan at 12am every year)
 	RotationSchedule []string `json:"rotation_schedule" yaml:"rotation-schedule"`
 	// UseLocal determines if the time used to rotate is based on the system's
 	// local time
@@ -58,8 +58,8 @@ type File struct {
 	// Backups maintains the number of backups to keep. If this is empty, do
 	// not delete backups.
 	Backups int `json:"backups" yaml:"backups"`
-	// BackupTimeFormat is the backup time format used when logfeller rotates
-	// the file. Defaults to ".2006-01-02T1504-05" if empty
+	// BackupTimeFormat is time format used for the backup file's encoded timestamp.
+	// Defaults to ".2006-01-02T1504-05" if empty.
 	// See the golang `time` package for more example formats
 	// https://golang.org/pkg/time/#Time.Format
 	BackupTimeFormat string `json:"backup_time_format" yaml:"backup-time-format"`
@@ -156,7 +156,6 @@ func (f *File) init() error {
 // we can have control over it in tests.
 func (f *File) setNowFunc(nf func() time.Time) { f.nowFunc = nf }
 
-// UnmarshalJSON unmarshals JSON to the file handler and init f too.
 func (f *File) UnmarshalJSON(data []byte) error {
 	type alias File
 	// Replace f with tmp and unmarshal there to prevent infinite loops
@@ -179,8 +178,8 @@ func (f *File) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return f.init()
 }
 
-// Write implements io.Writer. It first checks if it should rotate first before
-// writing.
+// Write implements io.Writer, Write checks if *File should rotate first
+// before writing.
 func (f *File) Write(p []byte) (int, error) {
 	if err := f.init(); err != nil {
 		return 0, err
@@ -198,7 +197,7 @@ func (f *File) Write(p []byte) (int, error) {
 	return f.file.Write(p)
 }
 
-// Sync commits file content.
+// Sync commits the current file content to stable storage.
 func (f *File) Sync() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
