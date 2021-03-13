@@ -252,7 +252,6 @@ backup-time-format: "Jan _2 15:04:05"`),
 			testutils.TrueOrError(t, reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule), "File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
 			testutils.TrueOrError(t, f.UseLocal == tt.want.UseLocal, "File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
 			testutils.TrueOrError(t, f.Backups == tt.want.Backups, "File.Backups = %v, want %v", f.Backups, tt.want.Backups)
-
 		})
 	}
 }
