@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -118,7 +118,7 @@ func (f *File) init() error {
 			f.When = f.When.lower()
 		}
 		if errInner := f.When.valid(); errInner != nil {
-			f.initErr = fmt.Errorf("logfeller: init failed, %w", errInner)
+			f.initErr = fmt.Errorf("logfeller: init failed, %v", errInner)
 			return
 		}
 		// Populate the rotation schedule offsets
@@ -126,7 +126,7 @@ func (f *File) init() error {
 		for _, schedule := range f.RotationSchedule {
 			sch, errInner := f.When.parseTimeSchedule(schedule)
 			if errInner != nil {
-				f.initErr = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %w", schedule, errInner)
+				f.initErr = fmt.Errorf("logfeller: failed to parse rotation schedule \"%s\": %v", schedule, errInner)
 				return
 			}
 			f.timeRotationSchedule = append(f.timeRotationSchedule, sch)
@@ -229,10 +229,10 @@ func (f *File) close() error {
 // rotate closes the file and rotates it after that.
 func (f *File) rotate() error {
 	if err := f.close(); err != nil {
-		return fmt.Errorf("rotate close error: %w", err)
+		return fmt.Errorf("rotate close error: %v", err)
 	}
 	if err := f.rotateOpen(); err != nil {
-		return fmt.Errorf("rotate open error: %w", err)
+		return fmt.Errorf("rotate open error: %v", err)
 	}
 	if err := f.triggerTrim(); err != nil {
 		return err
@@ -260,7 +260,7 @@ func (f *File) openExistingOrNew() error {
 		return f.rotateOpen()
 	}
 	if err != nil {
-		return fmt.Errorf("error getting file info: %w", err)
+		return fmt.Errorf("error getting file info: %v", err)
 	}
 	// file exists, update rotate at based on file's modified time and check if should rotate
 	f.updateRotateAt(f.calcRotationTimes(fileInfo.ModTime()))
@@ -320,7 +320,7 @@ func (f *File) rotateOpen() error {
 			if os.IsNotExist(err2) {
 				// If dst doesnt exist, move orignal file to dst path.
 				if err := os.Rename(f.Filename, dstFilename); err != nil {
-					return fmt.Errorf("unable to rename file %s to %s with err: %w", f.Filename, dstFilename, err)
+					return fmt.Errorf("unable to rename file %s to %s with err: %v", f.Filename, dstFilename, err)
 				}
 			}
 			if err2 == nil {
@@ -328,16 +328,16 @@ func (f *File) rotateOpen() error {
 				// to this dst file
 				dstFile, err := os.OpenFile(dstFilename, fileWriteAppend, mode)
 				if err != nil {
-					return fmt.Errorf("open existing dst file %s to append fail with err: %w", dstFilename, err)
+					return fmt.Errorf("open existing dst file %s to append fail with err: %v", dstFilename, err)
 				}
 				file, err := os.Open(f.Filename)
 				if err != nil {
-					return fmt.Errorf("open file %s to append to existing dst fail with err: %w", f.Filename, err)
+					return fmt.Errorf("open file %s to append to existing dst fail with err: %v", f.Filename, err)
 				}
 				buf := make([]byte, oneMB)
 				_, err = io.CopyBuffer(dstFile, file, buf)
 				if err != nil {
-					return fmt.Errorf("copy append from file %s to dst %s fail with error: %w", f.Filename, dstFilename, err)
+					return fmt.Errorf("copy append from file %s to dst %s fail with error: %v", f.Filename, dstFilename, err)
 				}
 				dstFile.Close()
 				file.Close()
@@ -417,13 +417,13 @@ func (f *File) trim() error {
 	if f.Backups <= 0 {
 		return nil
 	}
-	dirEntries, err := os.ReadDir(f.directory)
+	dirEntries, err := ioutil.ReadDir(f.directory)
 	if err != nil {
-		return fmt.Errorf("cannot read log file directory %s: %w", f.directory, err)
+		return fmt.Errorf("cannot read log file directory %s: %v", f.directory, err)
 	}
 	type fileInfoWithTime struct {
 		t time.Time
-		fs.DirEntry
+		os.FileInfo
 	}
 	var backupFIs []fileInfoWithTime
 	for _, dirEntry := range dirEntries {

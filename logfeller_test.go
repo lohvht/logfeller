@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,9 @@ import (
 )
 
 func TestFile_init(t *testing.T) {
+	basename := filepath.Base(os.Args[0])
+	trimmedCmdName := strings.TrimSuffix(basename, filepath.Ext(basename))
+
 	type wantFields struct {
 		Filename             string
 		When                 WhenRotate
@@ -70,14 +74,14 @@ func TestFile_init(t *testing.T) {
 			name: "omit_all_fields",
 			f:    &File{},
 			want: wantFields{
-				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
+				Filename:         filepath.Join(os.TempDir(), trimmedCmdName+"-logfeller.log"),
 				When:             "d",
 				BackupTimeFormat: ".2006-01-02T1504-05",
 				timeRotationSchedule: []timeSchedule{
 					{},
 				},
 				directory: os.TempDir(),
-				fileBase:  "logfeller.test-logfeller",
+				fileBase:  trimmedCmdName + "-logfeller",
 				ext:       ".log",
 			},
 		},
@@ -88,7 +92,7 @@ func TestFile_init(t *testing.T) {
 				RotationSchedule: []string{"1202 2311:55", "0102 0821:22", "0102 0821:22", "0109 1504:05", "0102 0504:05", "0102 0544:05", "0102 0544:32", "0611 1504:05"},
 			},
 			want: wantFields{
-				Filename:         filepath.Join(os.TempDir(), "logfeller.test-logfeller.log"),
+				Filename:         filepath.Join(os.TempDir(), trimmedCmdName+"-logfeller.log"),
 				When:             "y",
 				RotationSchedule: []string{"1202 2311:55", "0102 0821:22", "0102 0821:22", "0109 1504:05", "0102 0504:05", "0102 0544:05", "0102 0544:32", "0611 1504:05"},
 				BackupTimeFormat: ".2006-01-02T1504-05",
@@ -103,7 +107,7 @@ func TestFile_init(t *testing.T) {
 					{month: 12, day: 2, hour: 23, minute: 11, second: 55},
 				},
 				directory: os.TempDir(),
-				fileBase:  "logfeller.test-logfeller",
+				fileBase:  trimmedCmdName + "-logfeller",
 				ext:       ".log",
 			},
 		},
@@ -513,6 +517,8 @@ func TestFile(t *testing.T) {
 				n, err = rf.Write(b2)
 				testutils.TrueOrFatal(t, err == nil, "write error b2 err: content=%s,err=%v", b2, err)
 				testutils.TrueOrFatal(t, n == len(b2), "write b2 length mismatch; n=%d, expected=%d", n, len(b2))
+
+				time.Sleep(10 * time.Millisecond)
 				return map[string][]byte{
 					fname:               []byte("BARBAR3\n"),
 					firstRotateFilename: []byte("BARBAR2\n"),
@@ -563,6 +569,8 @@ func TestFile(t *testing.T) {
 				testutils.TrueOrFatal(t, n == len(b4), "write b4 length mismatch; n=%d, expected=%d", n, len(b4))
 
 				firstRotateFilename := fmt.Sprint("foo", startOfDay.Format(defaultBackupTimeFormat), ".log")
+
+				time.Sleep(10 * time.Millisecond)
 				return map[string][]byte{
 					firstRotateFilename: []byte("BARBAR1\nBARBAR2\nBARBAR3\n"),
 					fname:               []byte("BARBAR4\n"),
@@ -593,6 +601,7 @@ func TestFile(t *testing.T) {
 				testutils.TrueOrFatal(t, err == nil, "write error b1 err: content=%s,err=%v", b1, err)
 				testutils.TrueOrFatal(t, n == len(b1), "write b1 length mismatch; n=%d, expected=%d", n, len(b1))
 
+				time.Sleep(10 * time.Millisecond)
 				return map[string][]byte{
 					backupFilename2: []byte("BARBAREXISTING_2\n"),
 					fname:           []byte("BARBAR1\n"),
@@ -610,7 +619,7 @@ func TestFile(t *testing.T) {
 			}()
 
 			expectedFilenamesAndContents := tt.do(t, dirname)
-			dirEntries, err := os.ReadDir(dirname)
+			dirEntries, err := ioutil.ReadDir(dirname)
 			testutils.TrueOrFatal(t, err == nil, "should not fail at reading dir entries; dirname=%s,err=%v", dirname, err)
 			for _, de := range dirEntries {
 				if de.IsDir() {
