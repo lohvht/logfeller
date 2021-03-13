@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/lohvht/logfeller/internal/testutils"
 )
 
@@ -195,6 +197,62 @@ func TestFile_UnmarshalJSON(t *testing.T) {
 			testutils.TrueOrError(t, reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule), "File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
 			testutils.TrueOrError(t, f.UseLocal == tt.want.UseLocal, "File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
 			testutils.TrueOrError(t, f.Backups == tt.want.Backups, "File.Backups = %v, want %v", f.Backups, tt.want.Backups)
+		})
+	}
+}
+
+// TestFile_UnmarshalYAML is purely there to see if mapping between JSON tag
+// fields are accurate. For the actual init check TestFile_init
+func TestFile_UnmarshalYAML(t *testing.T) {
+	type args struct {
+		data []byte
+	}
+	type wantFields struct {
+		Filename         string
+		When             WhenRotate
+		RotationSchedule []string
+		UseLocal         bool
+		Backups          int
+		BackupTimeFormat string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    wantFields
+		wantErr bool
+	}{
+		{
+			name: "yaml_mapped_properly",
+			args: args{
+				data: []byte(`
+filename: some-file-proper-name.txt
+when: m
+rotation-schedule: ["03 1430:00", "10 1200:00"]
+use-local: true
+backups: 69
+backup-time-format: "Jan _2 15:04:05"`),
+			},
+			want: wantFields{
+				Filename:         "some-file-proper-name.txt",
+				When:             "m",
+				RotationSchedule: []string{"03 1430:00", "10 1200:00"},
+				UseLocal:         true,
+				Backups:          69,
+				BackupTimeFormat: "Jan _2 15:04:05",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var f File
+			err := yaml.Unmarshal(tt.args.data, &f)
+			testutils.TrueOrFatal(t, (err != nil) == tt.wantErr, "File.UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+			testutils.TrueOrError(t, f.Filename == tt.want.Filename, "File.Filename = %v, want %v", f.Filename, tt.want.Filename)
+			testutils.TrueOrError(t, f.When == tt.want.When, "File.When = %v, want %v", f.When, tt.want.When)
+			testutils.TrueOrError(t, reflect.DeepEqual(f.RotationSchedule, tt.want.RotationSchedule), "File.RotationSchedule = %v, want %v", f.RotationSchedule, tt.want.RotationSchedule)
+			testutils.TrueOrError(t, f.UseLocal == tt.want.UseLocal, "File.UseLocal = %v, want %v", f.UseLocal, tt.want.UseLocal)
+			testutils.TrueOrError(t, f.Backups == tt.want.Backups, "File.Backups = %v, want %v", f.Backups, tt.want.Backups)
+
 		})
 	}
 }

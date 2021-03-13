@@ -168,10 +168,16 @@ func (f *File) UnmarshalJSON(data []byte) error {
 	return f.init()
 }
 
-// TODO: IMPLEMENT YAML UNMARSHALLING
-// func (f *File) UnmarshalYAML(unmarshal func(interface{}) error) error {
-// return nil
-// }
+func (f *File) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type alias File
+	// Replace f with tmp and unmarshal there to prevent infinite loops
+	tmp := (*alias)(f)
+	err := unmarshal(tmp)
+	if err != nil {
+		return err
+	}
+	return f.init()
+}
 
 // Write implements io.Writer. It first checks if it should rotate first before
 // writing.
