@@ -1,4 +1,4 @@
-# logfeller
+# logfeller [![Go Reference](https://pkg.go.dev/badge/github.com/lohvht/logfeller.svg)](https://pkg.go.dev/github.com/lohvht/logfeller) 
 
 ## Installation
 ```

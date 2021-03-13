@@ -1,5 +1,5 @@
 $TIMESTAMP = (date -u +%Y%m%d.%H%M%S)
-$COVER_PROFILE_FILENAME = "logfeller-testcov"
+$COVER_PROFILE_FILENAME = "$env:TEMP\logfeller-testcov.$TIMESTAMP.out"
 
 $target = $args[0]
 
@@ -10,18 +10,30 @@ switch ($target) {
     test {
         go generate ./...
         $packages = If ($args[1] -eq $null) { "./..." } else { $args[1] }
-        go test -cover $packages
+        go test -cover -race $packages
+    }
+    testcov {
+        go generate ./...
+        $packages = If ($args[1] -eq $null) { "./..." } else { $args[1] }
+        $coverfilepath = If ($args[2] -eq $null) { $COVER_PROFILE_FILENAME } else { $args[2] }
+
+        Write-Output "Running tests over $packages and saving output to $coverfilepath"
+        go test -race $packages -covermode atomic -coverprofile $coverfilepath
+        if(!$?) {
+           exit $?
+        }
     }
     showtestcov {
         go generate ./...
         $packages = If ($args[1] -eq $null) { "./..." } else { $args[1] }
-        $fullcoverpath = "$env:TEMP\$COVER_PROFILE_FILENAME.$TIMESTAMP.out"
-        Write-Output "Running tests over $packages and saving output to $fullcoverpath"
-        go test $packages -covermode count -coverprofile $fullcoverpath
+        $coverfilepath = If ($args[2] -eq $null) { $COVER_PROFILE_FILENAME } else { $args[2] }
+
+        Write-Output "Running tests over $packages and saving output to $coverfilepath"
+        go test -race $packages -covermode atomic -coverprofile $coverfilepath
         if(!$?) {
            exit $?
         }
-        go tool cover -html="$fullcoverpath"
+        go tool cover -html="$coverfilepath"
     }
     lint {
         go generate ./...
