@@ -417,6 +417,131 @@ func TestFile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "rotate_backup_clear_file_of_no_clear_diff_format",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				now := time.Now()
+				backupFormat := ".2006-01-02-1504"
+
+				// Initial data, will be deleted eventually
+				fullpath := filepath.Join(dirname, fname)
+				err := ioutil.WriteFile(fullpath, []byte("BARBAREXISTING\n"), 0600)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
+				// extra files (shouldnt be deleted)
+				// Looks similar to one expected but this file is foo.2006-01-02T1504-05.log which is diff from the
+				// backup time format we are using. This file shouldnt be touched at all.
+				extraFilename1 := fmt.Sprint("foo", testutils.TimeOfDay(now.Add(24*time.Hour), 0, 0, 0).Format(defaultBackupTimeFormat), ".log")
+				err = ioutil.WriteFile(filepath.Join(dirname, extraFilename1), []byte("FOO_EXTRA1\n"), 0600)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+				// Different file name from original log file name.
+				extraFilename2 := "bar.log"
+				err = ioutil.WriteFile(filepath.Join(dirname, extraFilename2), []byte("BAR_EXTRA1\n"), 0600)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
+				rf := File{Filename: fullpath, Backups: 1, BackupTimeFormat: backupFormat}
+				defer rf.Close()
+
+				// Force rotation by mocking now to return now 1 day later
+				rf.setNowFunc(func() time.Time { return now.Add(24 * time.Hour) })
+				b1 := []byte("BARBAR2\n")
+				n, err := rf.Write(b1)
+				testutils.TrueOrFatal(t, err == nil, "write error b1 err: content=%s,err=%v", b1, err)
+				testutils.TrueOrFatal(t, n == len(b1), "write b1 length mismatch; n=%d, expected=%d", n, len(b1))
+
+				// Force another rotation by mocking now to return now 2 day later
+				firstRotateFilename := fmt.Sprint("foo", testutils.TimeOfDay(now.Add(24*time.Hour), 0, 0, 0).Format(backupFormat), ".log")
+				rf.setNowFunc(func() time.Time { return now.Add(48 * time.Hour) })
+				b2 := []byte("BARBAR3\n")
+				n, err = rf.Write(b2)
+				testutils.TrueOrFatal(t, err == nil, "write error b2 err: content=%s,err=%v", b2, err)
+				testutils.TrueOrFatal(t, n == len(b2), "write b2 length mismatch; n=%d, expected=%d", n, len(b2))
+				return map[string][]byte{
+					fname:               []byte("BARBAR3\n"),
+					firstRotateFilename: []byte("BARBAR2\n"),
+					extraFilename1:      []byte("FOO_EXTRA1\n"),
+					extraFilename2:      []byte("BAR_EXTRA1\n"),
+				}
+			},
+		},
+		{
+			name: "force_rotate_flush_file",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				now := time.Now()
+				startOfDay := testutils.TimeOfDay(now, 0, 0, 0)
+				fullpath := filepath.Join(dirname, fname)
+
+				rf := File{Filename: fullpath, Backups: 2}
+				defer rf.Close()
+
+				b1 := []byte("BARBAR1\n")
+				n, err := rf.Write(b1)
+				testutils.TrueOrFatal(t, err == nil, "write error b1 err: content=%s,err=%v", b1, err)
+				testutils.TrueOrFatal(t, n == len(b1), "write b1 length mismatch; n=%d, expected=%d", n, len(b1))
+				err = rf.Rotate()
+				testutils.TrueOrFatal(t, err == nil, "rotate b1 err: err=%v", err)
+
+				b2 := []byte("BARBAR2\n")
+				n, err = rf.Write(b2)
+				testutils.TrueOrFatal(t, err == nil, "write error b2 err: content=%s,err=%v", b2, err)
+				testutils.TrueOrFatal(t, n == len(b2), "write b2 length mismatch; n=%d, expected=%d", n, len(b2))
+				err = rf.Rotate()
+				testutils.TrueOrFatal(t, err == nil, "rotate b2 err: err=%v", err)
+
+				b3 := []byte("BARBAR3\n")
+				n, err = rf.Write(b3)
+				testutils.TrueOrFatal(t, err == nil, "write error b3 err: content=%s,err=%v", b3, err)
+				testutils.TrueOrFatal(t, n == len(b3), "write b3 length mismatch; n=%d, expected=%d", n, len(b3))
+				err = rf.Rotate()
+				testutils.TrueOrFatal(t, err == nil, "rotate b3 err: err=%v", err)
+
+				// Try to write again rotating via normal means
+				// This will not rotate because we are "rotating" an empty file
+				// The logic prevents that and just reuses the empty file without
+				// moving
+				rf.setNowFunc(func() time.Time { return now.Add(24 * time.Hour) })
+				b4 := []byte("BARBAR4\n")
+				n, err = rf.Write(b4)
+				testutils.TrueOrFatal(t, err == nil, "write error b4 err: content=%s,err=%v", b4, err)
+				testutils.TrueOrFatal(t, n == len(b4), "write b4 length mismatch; n=%d, expected=%d", n, len(b4))
+
+				firstRotateFilename := fmt.Sprint("foo", startOfDay.Format(defaultBackupTimeFormat), ".log")
+				return map[string][]byte{
+					firstRotateFilename: []byte("BARBAR1\nBARBAR2\nBARBAR3\n"),
+					fname:               []byte("BARBAR4\n"),
+				}
+			},
+		},
+		{
+			name: "clear_previous_backup_before_writing",
+			do: func(t testing.TB, dirname string) map[string][]byte {
+				now := time.Now()
+				startOfYesterday := testutils.TimeOfDay(now.Add(-24*time.Hour), 0, 0, 0)
+				startOf2DaysBefore := testutils.TimeOfDay(now.Add(-48*time.Hour), 0, 0, 0)
+				fullpath := filepath.Join(dirname, fname)
+
+				// Multiple backup files, only backup file 2 will be remain
+				backupFilename1 := fmt.Sprint("foo", startOf2DaysBefore.Format(defaultBackupTimeFormat), ".log")
+				err := ioutil.WriteFile(filepath.Join(dirname, backupFilename1), []byte("BARBAREXISTING_1\n"), 0600)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+				backupFilename2 := fmt.Sprint("foo", startOfYesterday.Format(defaultBackupTimeFormat), ".log")
+				err = ioutil.WriteFile(filepath.Join(dirname, backupFilename2), []byte("BARBAREXISTING_2\n"), 0600)
+				testutils.TrueOrFatal(t, err == nil, "write existing file error; filename=%s;err=%v", fname, err)
+
+				rf := File{Filename: fullpath, Backups: 1}
+				defer rf.Close()
+
+				b1 := []byte("BARBAR1\n")
+				n, err := rf.Write(b1)
+				testutils.TrueOrFatal(t, err == nil, "write error b1 err: content=%s,err=%v", b1, err)
+				testutils.TrueOrFatal(t, n == len(b1), "write b1 length mismatch; n=%d, expected=%d", n, len(b1))
+
+				return map[string][]byte{
+					backupFilename2: []byte("BARBAREXISTING_2\n"),
+					fname:           []byte("BARBAR1\n"),
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

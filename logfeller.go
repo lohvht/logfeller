@@ -228,6 +228,9 @@ func (f *File) rotate() error {
 	if err := f.rotateOpen(); err != nil {
 		return fmt.Errorf("rotate open error: %w", err)
 	}
+	if err := f.triggerTrim(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -422,7 +425,7 @@ func (f *File) trim() error {
 			continue
 		}
 		filename := dirEntry.Name()
-		if !strings.HasPrefix(filename, f.fileBase) || strings.HasSuffix(filename, f.ext) {
+		if !strings.HasPrefix(filename, f.fileBase) || !strings.HasSuffix(filename, f.ext) {
 			// file is not a backup file if the fileBase and ext dont match
 			continue
 		}
